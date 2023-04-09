@@ -1,3 +1,8 @@
+extern "C"{
+    fn reset();
+    fn getCurrentChunkRange() -> String;
+    fn hasNextChunk(isStatic: bool) -> bool;
+}
 
 use std::collections::HashMap;
 use std::iter::Map;

@@ -2,7 +2,13 @@ mod jacobi_sampler;
 mod gemm_sampler;
 mod chunk_dispatcher;
 
+extern "C" {
+    // fn test() -> i32;
+    fn something() -> i32;
+}
+
 fn main() {
-    let mut progress: [i32; 4] = Default::default();
-    assert_eq!(progress, [0, 0, 0, 0]);
+    unsafe {
+        println!("Hello, world! {}", something());
+    }
 }
