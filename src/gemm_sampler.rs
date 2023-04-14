@@ -13,15 +13,19 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 use std::sync::mpsc::channel;
+// use derivative::Derivative;
 // use rgsl::rng::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
+// use crate::chunk_dispatcher::Chunk;
+use crate::gemm_sampler::chunk_dispatcher::Chunk;
+
 #[path = "chunk_dispatcher.rs"]
 mod chunk_dispatcher;
 /*
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
 
-const THREAD_NUM: usize = 4;
+const THREAD_NUM: usize = 4; ///because the thread_num in gemm is 4
 const CHUNK_SIZE: usize = 4;
 const DS: usize = 8;
 const CLS: usize = 64;
@@ -65,7 +69,7 @@ fn sampler() {
     ///progress is not needed in this simpler version
     let mut idle_threads: [i32; THREAD_NUM] = Default::default();
     let mut subscripts: Vec<i32> = Vec::new();
-    // let dispatcher: ChunkDispatcher; TODO: !!!!!
+    let mut dispatcher = chunk_dispatcher::chunk_dispatcher::new_with_default();
     let mut tid_to_run: i32 = 0;
     let mut start_tid: i32 = 0;
     let mut working_threads: i32 = THREAD_NUM as i32;
@@ -82,6 +86,9 @@ fn sampler() {
     //Threads are interleaved using uniform interleaving
     loop_cnt += 1;
     // dispatcher = ChunkDispatcher(CHUNK_SIZE,((128-0)),0,1); TODO: !!!!!
+    dispatcher.new( CHUNK_SIZE as i32, 128, 0, 1);
+
+
     for tid in 0..THREAD_NUM {
         idle_threads[tid] = 1;
     }
@@ -90,7 +97,32 @@ fn sampler() {
     // for (tid_to_run = 0; tid_to_run < THREAD_NUM; tid_to_run++) {
     for tid in 0..THREAD_NUM {
         loop {
-
+            // if (idle_threads[tid_to_run] == 1 && dispatcher.hasNextChunk(1)) {
+            if idle_threads[tid] == 1 && dispatcher.has_next_chunk(true) {
+                // Chunk c = dispatcher.getNextStaticChunk(tid_to_run);
+                // vector<int> parallel_iteration_vector;
+                // parallel_iteration_vector.push_back(c.first);
+                // parallel_iteration_vector.push_back(0 );
+                // if (progress[tid_to_run]) {
+                //     progress[tid_to_run]->ref = "C0";
+                //     progress[tid_to_run]->iteration = parallel_iteration_vector;
+                //     progress[tid_to_run]->chunk = c;
+                // } else {
+                //     Progress *p = new Progress("C0", parallel_iteration_vector, c);
+                //     progress[tid_to_run] = p;
+                // }
+                // idle_threads[tid_to_run] = 0;
+                let c: Chunk = dispatcher.get_next_static_chunk(tid as u32);
+                let mut parallel_iteration_vector: Vec<i32> = Default::default();
+                parallel_iteration_vector.push(c.first());
+                parallel_iteration_vector.push(0);
+                // if progress[tid] TODO: !!!!! don't know if need to implement progress
+            } /* end of chunk availability check */
+            //UNIFORM INTERLEAVING
+            // if (!progress[tid_to_run] || !progress[tid_to_run]->isInBound()) {
+            //     idle_threads[tid_to_run] = 1;
+            //     break;
+            // }
         }
     }
 }

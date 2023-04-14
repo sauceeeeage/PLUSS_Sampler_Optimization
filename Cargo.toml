@@ -10,6 +10,7 @@ build = "build.rs"
 
 [dependencies]
 GSL = "6.0.0"
+derivative = "2.2.0"
 
 [build-dependencies]
 cbindgen = "0.24.3"

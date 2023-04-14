@@ -37,6 +37,8 @@ extern crate cc;
 
 fn main() {
     cc::Build::new().file("c_lib/playground.c").compile("playground");
+    // cc::Build::new().file("c_lib/pluss.h").compile("pluss");
+    // cc::Build::new().file("c_lib/pluss_utils.h").compile("pluss_utils");
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
