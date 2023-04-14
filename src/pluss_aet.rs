@@ -4,11 +4,9 @@ use std::sync::{Arc, Mutex};
 type Histogram = HashMap<i64, f64>;
 
 // Arc<Mutex<T>> for globals
-lazy_static! {
-    static ref RIHIST: Arc<Mutex<Histogram>> = Arc::new(Mutex::new(HashMap::new()));
-    static ref PAR_RI_HIST: Arc<Mutex<HashMap<i64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
-    static ref MRC: Arc<Mutex<HashMap<u64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
-}
+pub static mut RIHIST: Arc<Mutex<Histogram>> = Arc::new(Mutex::new(HashMap::new()));
+pub static mut PAR_RI_HIST: Arc<Mutex<HashMap<i64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
+pub static mut MRC: Arc<Mutex<HashMap<u64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
 
 fn pluss_aet() {
     let mut p: HashMap<u64, f64> = HashMap::new();
