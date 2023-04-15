@@ -16,8 +16,7 @@ use std::sync::mpsc::channel;
 // use derivative::Derivative;
 // use rgsl::rng::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
-// use crate::chunk_dispatcher::Chunk;
-use crate::gemm_sampler::chunk_dispatcher::Chunk;
+use crate::chunk::Chunk;
 
 #[path = "chunk_dispatcher.rs"]
 mod chunk_dispatcher;

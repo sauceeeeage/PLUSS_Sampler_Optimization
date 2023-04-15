@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use lazy_static::lazy_static;
 
 type Histogram = HashMap<i64, f64>;
 
@@ -50,7 +51,7 @@ fn pluss_aet() {
     let cs = 2560 * 1024 / std::mem::size_of::<f64>();
 
     for c in 0..=max_rt as u64 {
-        if c > cs {
+        if c > cs as u64 {
             break;
         }
         while sum_p < c as f64 && t <= max_rt as u64 {

@@ -26,6 +26,7 @@ impl Iteration {
         parallel_iter_idx: usize,
         priority: Option<i32>,
     ) -> Self {
+        // By default, the priority is 1, start is 0, step is 1, parallel_iter_idx is 0, and is_in_parallel_region is false
         let priority = priority.unwrap_or(1);
         let (cid, tid, pos) = if is_in_parallel_region {
             let cid = ((ivs[parallel_iter_idx] - start) / step) / (CHUNK_SIZE * THREAD_NUM);
@@ -33,7 +34,7 @@ impl Iteration {
             let pos = ((ivs[parallel_iter_idx] - start) / step) % CHUNK_SIZE;
             (cid, tid, pos)
         } else {
-            (0, 0, 0) // ??????what to do if not is_in_parallel_region????????????
+            (0, 0, 0) /* dummy values */
         };
 
         Self {
@@ -196,7 +197,7 @@ impl PartialOrd for Iteration {
 impl Hash for Iteration {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.name.hash(state);
-        let mut bitmap: u64 = 0;
+        let mut bitmap: u64 = 0u64;
         let mut i = 2;
         for &iv in &self.ivs {
             bitmap |= (iv as u64) << (i * 14);
