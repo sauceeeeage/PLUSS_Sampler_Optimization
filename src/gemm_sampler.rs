@@ -6,6 +6,7 @@ extern "C"{
 
 use std::collections::HashMap;
 use std::iter::Map;
+use std::process::id;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 // use std::sync::atomic::{AtomicUsize, Ordering};
@@ -16,6 +17,8 @@ use std::sync::mpsc::channel;
 // use derivative::Derivative;
 // use rgsl::rng::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
+use rayon::prelude::*;
+
 use crate::chunk::Chunk;
 use crate::progress::Progress;
 use crate::iteration::Iteration;
@@ -34,10 +37,10 @@ const CLS: usize = 64;
 
 static mut max_iteration_count: i64 = 0;
 
-fn get_addr_C0(idx0: i64, idx1: i64) -> i64 {
+fn get_addr_C0(idx0: i64, idx1: i64) -> u64 {
     ///don't know if to change the input para to i64, i32 or usize
     let addr_C0: i64 = (idx0 * 128) + (idx1 * 1);
-    addr_C0 * (DS as i64) / (CLS as i64)
+    (addr_C0 * (DS as i64) / (CLS as i64)) as u64
 }
 
 fn get_addr_B0(idx0: i64, idx1: i64) -> i64 {
@@ -65,6 +68,21 @@ fn get_addr_C3(idx0: i64, idx1: i64) -> i64 {
     addr_C3 * (DS as i64) / (CLS as i64)
 }
 
+fn distance_to(x: u64, y: u64) -> u64 {
+    if x > y {
+        x - y
+    } else {
+        y - x
+    }
+}
+
+fn update_and_clear_array(array: &mut [HashMap<u64, i64>]) {
+    for i in 0..array.len() {
+        // pluss_cri_noshare_histogram_update(i, -1, LAT_C[i].len());
+        array[i].clear();
+    }
+}
+
 //Generate sampler without sampling
 fn sampler() {
     //Declare components will be used in Parallel RI search
@@ -80,9 +98,9 @@ fn sampler() {
     let mut addr: u64 = 0;
     let mut loop_cnt: u64 = 0;
     let mut count: [i64; THREAD_NUM + 1] = Default::default(); //should be init as the C++ version does: {0}
-    let mut LAT_A: [HashMap<u64, i64>; THREAD_NUM];
-    let mut LAT_B: [HashMap<u64, i64>; THREAD_NUM];
-    let mut LAT_C: [HashMap<u64, i64>; THREAD_NUM];
+    let mut LAT_A: [HashMap<u64, i64>; THREAD_NUM] = Default::default();
+    let mut LAT_B: [HashMap<u64, i64>; THREAD_NUM] = Default::default();
+    let mut LAT_C: [HashMap<u64, i64>; THREAD_NUM] = Default::default();
     //srand(time(NULL)); in c++, but seems like not used in the code
 
     //Generate parallel code for (c0,0,\<,128,(c0 + 1))
@@ -144,34 +162,230 @@ fn sampler() {
                 idle_threads[tid] = 1;
                 break;
             }
+            // if (progress[tid_to_run]->ref == "C0") {
+            // addr = GetAddress_C0(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
+            if progress[tid].as_ref().unwrap().refs == "C0" {
+                let addr = get_addr_C0(
+                    progress[tid].as_ref().unwrap().iteration[0] as i64,
+                    progress[tid].as_ref().unwrap().iteration[1] as i64,
+                );
+                // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
+                if LAT_C[tid].contains_key(&(addr as u64)) {
+                    // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                    // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
+                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                }
+                // LAT_C[tid_to_run][addr] = count[tid_to_run];
+                LAT_C[tid].insert(addr as u64, count[tid]);
+                // count[tid_to_run]++;
+                count[tid] += 1;
+                progress[tid].as_mut().unwrap().increment_with_ref("C1".parse().unwrap());
+                continue;
+            } /* end of check to C0 */
 
-            if let Some(progress_tid) = progress[tid].as_ref() {
-                if progress_tid.refs == "C0" {
-                    let addr = get_addr_C0(
-                        progress_tid.iteration[0] as i64,
-                        progress_tid.iteration[1] as i64,
-                    );
+            // if (progress[tid_to_run]->ref == "C1") {
+            //     addr = GetAddress_C1(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
+            if progress[tid].as_ref().unwrap().refs == "C1" {
+                let addr = get_addr_C1(
+                    progress[tid].as_ref().unwrap().iteration[0] as i64,
+                    progress[tid].as_ref().unwrap().iteration[1] as i64,
+                );
+                // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
+                if LAT_C[tid].contains_key(&(addr as u64)) {
+                    // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                    // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
+                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                }
+                // LAT_C[tid_to_run][addr] = count[tid_to_run];
+                LAT_C[tid].insert(addr as u64, count[tid]);
+                // count[tid_to_run]++;
+                count[tid] += 1;
+                // CASE 2
+                progress[tid].as_mut().unwrap().iteration.push(0);
+                progress[tid].as_mut().unwrap().increment_with_ref("A0".parse().unwrap());
+                continue;
+            } /* end of check to C1 */
+            if progress[tid].as_ref().unwrap().refs == "A0" {
+                let addr = get_addr_A0(
+                    progress[tid].as_ref().unwrap().iteration[0] as i64,
+                    progress[tid].as_ref().unwrap().iteration[2] as i64,
+                );
+                if LAT_A[tid].contains_key(&(addr as u64)) {
+                    let reuse: i64 = count[tid] - LAT_A[tid].get(&(addr as u64)).unwrap();
+                    // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
+                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                }
+                LAT_A[tid].insert(addr as u64, count[tid]);
+                count[tid] += 1;
+                // CASE 2
+                progress[tid].as_mut().unwrap().increment_with_ref("B0".parse().unwrap());
+                continue;
+            } /* end of check to A0 */
+            if progress[tid].as_ref().unwrap().refs == "B0" {
+                let addr = get_addr_B0(
+                    progress[tid].as_ref().unwrap().iteration[2] as i64,
+                    progress[tid].as_ref().unwrap().iteration[1] as i64,
+                ); // don't really understand why the iteration is 2 and 1 here and also in other places
+                if LAT_B[tid].contains_key(&(addr as u64)) {
+                    let reuse: i64 = count[tid] - LAT_B[tid].get(&(addr as u64)).unwrap();
+                    /* Compare c2*/
+                    /* With c2*/
+                    /* With c1*/
+                    /* Compare c1*/
+                    /* With c2*/
+                    /* With c1*/
+                    //B[c2][c1] is carried by (c1,0,\<,128,(c1 + 1))
 
-                    progress_tid.refs = "1".to_string();
-                    progress_tid.refs = "1".to_string();
-
-            
-                    if let Some(reuse) = LAT_C[tid].get(&(addr as u64)) {
-                        let reuse = count[tid as usize] - reuse;
-                        pluss_cri_noshare_histogram_update(tid, reuse, 1);
+                    // if (distance_to(reuse,0) > distance_to(reuse,(((1)*((128-0)/1)+1)*((128-0)/1)+1))) {
+                    if distance_to(reuse as u64, 0) > distance_to(reuse as u64, 16513) { //don't really understand why 16513 is used here
+                        // pluss_cri_share_histogram_update(tid_to_run,THREAD_NUM-1,reuse,1);
+                        // pluss_cri_share_histogram_update(tid, THREAD_NUM - 1, reuse, 1); TODO: !!!!!
+                    } else {
+                        // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
+                        // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
                     }
-            
-                    LAT_C[tid].insert(addr as u64, count[tid as usize]);
-            
-                    count[tid as usize] += 1;
-                    progress[tid as usize].as_mut().unwrap().increment_with_ref("C1".to_string());
+                }
+                LAT_B[tid].insert(addr as u64, count[tid]);
+                count[tid] += 1;
+                progress[tid].as_mut().unwrap().increment_with_ref("C2".parse().unwrap());
+                continue;
+            } /* end of check to B0 */
+            if progress[tid].as_ref().unwrap().refs == "C2" {
+                let addr = get_addr_C2(
+                    progress[tid].as_ref().unwrap().iteration[0] as i64,
+                    progress[tid].as_ref().unwrap().iteration[1] as i64,
+                );
+                if LAT_C[tid].contains_key(&(addr as u64)) {
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                    // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
+                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                }
+                LAT_C[tid].insert(addr as u64, count[tid]);
+                count[tid] += 1;
+                progress[tid].as_mut().unwrap().increment_with_ref("C3".parse().unwrap());
+                continue;
+            } /* end of check to C2 */
+            if progress[tid].as_ref().unwrap().refs == "C3" {
+                let addr = get_addr_C3(
+                    progress[tid].as_ref().unwrap().iteration[0] as i64,
+                    progress[tid].as_ref().unwrap().iteration[1] as i64,
+                );
+                if LAT_C[tid].contains_key(&(addr as u64)) {
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                    // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
+                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                }
+                // //CASE 3
+                // if ((progress[tid_to_run]->iteration[2] + 1)<128) {
+                //     progress[tid_to_run]->iteration[2] = (progress[tid_to_run]->iteration[2] + 1);
+                //     progress[tid_to_run]->increment("A0");
+                //     continue;
+                // } /* end of check to C3 */
+                // //CASE 1
+                // if ((progress[tid_to_run]->iteration[1] + 1)<128) {
+                //     progress[tid_to_run]->iteration[1] = (progress[tid_to_run]->iteration[1] + 1);
+                //     progress[tid_to_run]->iteration.pop_back();
+                //     progress[tid_to_run]->increment("C0");
+                //     continue;
+                // } /* end of check to C3 */
+                // //CASE 1
+                // progress[tid_to_run]->iteration[0] = (progress[tid_to_run]->iteration[0] + 1);
+                // if (progress[tid_to_run]->isInBound()) {
+                //     progress[tid_to_run]->iteration.pop_back();
+                //     progress[tid_to_run]->iteration.pop_back();
+                //     progress[tid_to_run]->iteration.emplace_back(0);
+                //     progress[tid_to_run]->increment("C0");
+                //     continue;
+                // } /* end of check to C3 */
+                if (progress[tid].as_ref().unwrap().iteration[2] + 1) < 128 {
+                    progress[tid].as_mut().unwrap().iteration[2] = progress[tid].as_ref().unwrap().iteration[2] + 1;
+                    progress[tid].as_mut().unwrap().increment_with_ref("A0".parse().unwrap());
                     continue;
-                } // end of check to C0
+                } /* end of check to C3 */
+                if (progress[tid].as_ref().unwrap().iteration[1] + 1) < 128 {
+                    progress[tid].as_mut().unwrap().iteration[1] = progress[tid].as_ref().unwrap().iteration[1] + 1;
+                    progress[tid].as_mut().unwrap().iteration.pop(); //may need to unwrap???
+                    progress[tid].as_mut().unwrap().increment_with_ref("C0".parse().unwrap());
+                    continue;
+                } /* end of check to C3 */
+                //CASE 1
+                progress[tid].as_mut().unwrap().iteration[0] = progress[tid].as_ref().unwrap().iteration[0] + 1;
+                if progress[tid].as_ref().unwrap().is_in_bound() {
+                    progress[tid].as_mut().unwrap().iteration.pop();
+                    progress[tid].as_mut().unwrap().iteration.pop();
+                    progress[tid].as_mut().unwrap().iteration.push(0);
+                    progress[tid].as_mut().unwrap().increment_with_ref("C0".parse().unwrap());
+                    continue;
+                } /* end of check to C3 */
+            } /* end of check to C3 */
+            if idle_threads[tid] == 0 {
+                idle_threads[tid] = 1;
             }
+            if idle_threads[tid] == 1 && !dispatcher.has_next_chunk(true){
+                break;
+            } /* end of break condition check */
+        } /* end of while(true) */
+    } /* end of for(tid) */
+
+    // //reset both lists so they can be reused for later parallel loop
+    // idle_threads.fill(0);
+    // //Addresses in C with no data reuse will be marked as -1
+    // for (unsigned i = 0; i < LAT_C.size(); i++) {
+    //     pluss_cri_noshare_histogram_update(i,-1,LAT_C[i].size());
+    //     LAT_C[i].clear();
+    // }
+    // //Addresses in A with no data reuse will be marked as -1
+    // for (unsigned i = 0; i < LAT_A.size(); i++) {
+    //     pluss_cri_noshare_histogram_update(i,-1,LAT_A[i].size());
+    //     LAT_A[i].clear();
+    // }
+    // //Addresses in B with no data reuse will be marked as -1
+    // for (unsigned i = 0; i < LAT_B.size(); i++) {
+    //     pluss_cri_noshare_histogram_update(i,-1,LAT_B[i].size());
+    //     LAT_B[i].clear();
+    // }
+    // for (unsigned i = 0; i < progress.size(); i++) {
+    //     if (progress[i]) {
+    //         delete progress[i];
+    //         progress[i] = nullptr;
+    //     }
+    // }
+
+    idle_threads.fill(0);
+    // progress.fill(None); this is not in the cpp file, but seems like it should be, b/c the comment above says to reset both lists
+
+    //update and clear the lists
+    update_and_clear_array(&mut LAT_C);
+    update_and_clear_array(&mut LAT_A);
+    update_and_clear_array(&mut LAT_B);
+
+    //delete the progress array
+    for i in 0..progress.len() {
+        if progress[i].is_some() {
+            progress[i] = None;
         }
-
     }
+    unsafe {
+        max_iteration_count = count.iter().sum();
+    }
+}
 
-    
+fn main(){
+    // pluss_timer_start();
+    // sampler();
+    // pluss_cri_distribute(THREAD_NUM);
+    // pluss_AET();
+    // pluss_timer_stop();
+    // pluss_timer_print();
+    // pluss_cri_noshare_print_histogram();
+    // pluss_cri_share_print_histogram();
+    // pluss_print_histogram();
+    // pluss_print_mrc();
+    // cout << "max iteration traversed" << endl;
+    // cout << max_iteration_count << endl;
+    // return 0;
+
 }
 

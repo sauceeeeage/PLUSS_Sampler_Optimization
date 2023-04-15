@@ -29,6 +29,7 @@ impl Iteration {
         // By default, the priority is 1, start is 0, step is 1, parallel_iter_idx is 0, and is_in_parallel_region is false
         let priority = priority.unwrap_or(1);
         let (cid, tid, pos) = if is_in_parallel_region {
+            // FIXME: this might be wrong, b/c all variables are usize, this might overflow; maybe change it to isize?
             let cid = ((ivs[parallel_iter_idx] - start) / step) / (CHUNK_SIZE * THREAD_NUM);
             let tid = ((ivs[parallel_iter_idx] - start) / step) / CHUNK_SIZE - cid * THREAD_NUM;
             let pos = ((ivs[parallel_iter_idx] - start) / step) % CHUNK_SIZE;
