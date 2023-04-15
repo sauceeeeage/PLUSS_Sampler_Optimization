@@ -75,7 +75,6 @@ fn sampler() {
     let mut subscripts: Vec<i32> = Default::default();
     // let mut dispatcher = chunk_dispatcher::chunk_dispatcher::new_with_default();
     let mut dispatcher = chunk_dispatcher::new_with_default();
-    let mut tid_to_run: i32 = 0;
     let mut start_tid: i32 = 0;
     let mut working_threads: i32 = THREAD_NUM as i32;
     let mut addr: u64 = 0;
@@ -99,24 +98,24 @@ fn sampler() {
     }
 
     // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
-    // for (tid_to_run = 0; tid_to_run < THREAD_NUM; tid_to_run++) {
+    // for (tid = 0; tid < THREAD_NUM; tid++) {
     for tid in 0..THREAD_NUM {
         loop {
-            // if (idle_threads[tid_to_run] == 1 && dispatcher.hasNextChunk(1)) {
+            // if (idle_threads[tid] == 1 && dispatcher.hasNextChunk(1)) {
             if idle_threads[tid] == 1 && dispatcher.has_next_chunk(true) {
-                // Chunk c = dispatcher.getNextStaticChunk(tid_to_run);
+                // Chunk c = dispatcher.getNextStaticChunk(tid);
                 // vector<int> parallel_iteration_vector;
                 // parallel_iteration_vector.push_back(c.first);
                 // parallel_iteration_vector.push_back(0 );
-                // if (progress[tid_to_run]) {
-                //     progress[tid_to_run]->ref = "C0";
-                //     progress[tid_to_run]->iteration = parallel_iteration_vector;
-                //     progress[tid_to_run]->chunk = c;
+                // if (progress[tid]) {
+                //     progress[tid]->ref = "C0";
+                //     progress[tid]->iteration = parallel_iteration_vector;
+                //     progress[tid]->chunk = c;
                 // } else {
                 //     Progress *p = new Progress("C0", parallel_iteration_vector, c);
-                //     progress[tid_to_run] = p;
+                //     progress[tid] = p;
                 // }
-                // idle_threads[tid_to_run] = 0;
+                // idle_threads[tid] = 0;
                 let c: Chunk = dispatcher.get_next_static_chunk(tid as u32);
                 let mut parallel_iteration_vector: Vec<i32> = Default::default();
                 parallel_iteration_vector.push(c.first());
@@ -132,11 +131,38 @@ fn sampler() {
                 // if progress[tid] TODO: !!!!! don't know if need to implement progress
             } /* end of chunk availability check */
             //UNIFORM INTERLEAVING
-            // if (!progress[tid_to_run] || !progress[tid_to_run]->isInBound()) {
-            //     idle_threads[tid_to_run] = 1;
-            //     break;
+            // if (!progress[tid] || !progress[tid]->isInBound()) {
+            //     idle_threads[tid] = 1;
+                // break;
             // }
+
+            if let Some(progress_tid) = progress[tid].as_ref() {
+                if progress_tid.refs == "C0" {
+                    let addr = get_addr_C0(
+                        progress_tid.iteration[0] as i64,
+                        progress_tid.iteration[1] as i64,
+                    );
+
+                    progress_tid.refs = "1".to_string();
+                    progress_tid.refs = "1".to_string();
+
+            
+                    if let Some(reuse) = LAT_C[tid].get(&(addr as u64)) {
+                        let reuse = count[tid as usize] - reuse;
+                        pluss_cri_noshare_histogram_update(tid, reuse, 1);
+                    }
+            
+                    LAT_C[tid].insert(addr as u64, count[tid as usize]);
+            
+                    count[tid as usize] += 1;
+                    progress[tid as usize].as_mut().unwrap().increment_with_ref("C1".to_string());
+                    continue;
+                } // end of check to C0
+            }
         }
+
     }
+
+    
 }
 
