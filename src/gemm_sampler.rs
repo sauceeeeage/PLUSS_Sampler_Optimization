@@ -120,21 +120,30 @@ fn sampler() {
                 let mut parallel_iteration_vector: Vec<i32> = Default::default();
                 parallel_iteration_vector.push(c.first());
                 parallel_iteration_vector.push(0);
-                // if progress[tid].is_some() {
-                //     progress[tid].unwrap().refs = "C0".parse().unwrap();
-                //     progress[tid].unwrap().iteration = parallel_iteration_vector;
-                //     progress[tid].unwrap().chunk = c;
-                // } else {
-                //     // let &p = &Progress::new("C0", parallel_iteration_vector, c);
-                //     // progress[tid] = Some(p);
-                // }
-                // if progress[tid] TODO: !!!!! don't know if need to implement progress
+                if progress[tid].is_some() {
+                    // *progress[tid].unwrap().refs = "C0".parse().unwrap();
+                    // *progress[tid].unwrap().iteration = parallel_iteration_vector;
+                    // let mut a = (progress[tid].unwrap()).as_ref();
+                    // a.chunk = c;
+                    // let mut p: &'static Progress = Box::leak(progress[tid].unwrap().to_owned().into());
+                    progress[tid].as_mut().unwrap().refs = "C0".parse().unwrap();
+                    progress[tid].as_mut().unwrap().iteration = parallel_iteration_vector;
+                    progress[tid].as_mut().unwrap().chunk = c;
+                } else {
+                    let p = Progress::new_with_ref("C0".parse().unwrap(), parallel_iteration_vector, c);
+                    progress[tid] = Some(p);
+                }
+                idle_threads[tid] = 0;
             } /* end of chunk availability check */
             //UNIFORM INTERLEAVING
             // if (!progress[tid] || !progress[tid]->isInBound()) {
             //     idle_threads[tid] = 1;
                 // break;
             // }
+            if progress[tid].is_none() || !progress[tid].as_ref().unwrap().is_in_bound() {
+                idle_threads[tid] = 1;
+                break;
+            }
 
             if let Some(progress_tid) = progress[tid].as_ref() {
                 if progress_tid.refs == "C0" {

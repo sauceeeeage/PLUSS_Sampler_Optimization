@@ -43,9 +43,9 @@
 // };
 use crate::chunk::Chunk;
 pub (crate)struct Progress {
-    pub refs: String, // cannot name it ref because it's a keyword
-    pub chunk: Chunk,
-    pub iteration: Vec<i32>,
+    pub(crate) refs: String, // cannot name it ref because it's a keyword
+    pub(crate) chunk: Chunk,
+    pub(crate) iteration: Vec<i32>,
 }
 
 impl Progress {
