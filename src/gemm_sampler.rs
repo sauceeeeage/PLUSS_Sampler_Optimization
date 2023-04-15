@@ -17,9 +17,12 @@ use std::sync::mpsc::channel;
 // use rgsl::rng::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::chunk::Chunk;
+use crate::progress::Progress;
+use crate::iteration::Iteration;
+use crate::chunk_dispatcher::chunk_dispatcher;
 
-#[path = "chunk_dispatcher.rs"]
-mod chunk_dispatcher;
+// #[path = "chunk_dispatcher.rs"]
+// mod chunk_dispatcher;
 /*
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
@@ -66,9 +69,12 @@ fn get_addr_C3(idx0: i64, idx1: i64) -> i64 {
 fn sampler() {
     //Declare components will be used in Parallel RI search
     ///progress is not needed in this simpler version
+    // array<Progress *, THREAD_NUM> progress = { nullptr };
+    let mut progress: [Option<Progress>; THREAD_NUM] = Default::default();
     let mut idle_threads: [i32; THREAD_NUM] = Default::default();
-    let mut subscripts: Vec<i32> = Vec::new();
-    let mut dispatcher = chunk_dispatcher::chunk_dispatcher::new_with_default();
+    let mut subscripts: Vec<i32> = Default::default();
+    // let mut dispatcher = chunk_dispatcher::chunk_dispatcher::new_with_default();
+    let mut dispatcher = chunk_dispatcher::new_with_default();
     let mut tid_to_run: i32 = 0;
     let mut start_tid: i32 = 0;
     let mut working_threads: i32 = THREAD_NUM as i32;
@@ -115,6 +121,14 @@ fn sampler() {
                 let mut parallel_iteration_vector: Vec<i32> = Default::default();
                 parallel_iteration_vector.push(c.first());
                 parallel_iteration_vector.push(0);
+                // if progress[tid].is_some() {
+                //     progress[tid].unwrap().refs = "C0".parse().unwrap();
+                //     progress[tid].unwrap().iteration = parallel_iteration_vector;
+                //     progress[tid].unwrap().chunk = c;
+                // } else {
+                //     // let &p = &Progress::new("C0", parallel_iteration_vector, c);
+                //     // progress[tid] = Some(p);
+                // }
                 // if progress[tid] TODO: !!!!! don't know if need to implement progress
             } /* end of chunk availability check */
             //UNIFORM INTERLEAVING

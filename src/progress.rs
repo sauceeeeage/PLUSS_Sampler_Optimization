@@ -42,28 +42,28 @@
 // }
 // };
 use crate::chunk::Chunk;
-struct Progress {
-    refs: String, // cannot name it ref because it's a keyword
-    chunk: Chunk,
-    iteration: Vec<i32>,
+pub (crate)struct Progress {
+    pub refs: String, // cannot name it ref because it's a keyword
+    pub chunk: Chunk,
+    pub iteration: Vec<i32>,
 }
 
 impl Progress {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Progress {
             refs: String::new(),
             chunk: Chunk::new(0, 0),
             iteration: Vec::new(),
         }
     }
-    fn new_with_ref(refs: String, iteration: Vec<i32>, chunk: Chunk) -> Self {
+    pub fn new_with_ref(refs: String, iteration: Vec<i32>, chunk: Chunk) -> Self {
         Progress {
             refs,
             chunk,
             iteration,
         }
     }
-    fn get_iteration(&self) -> String {
+    pub fn get_iteration(&self) -> String {
         let mut ret = String::from("(");
         for i in 0..self.iteration.len() {
             ret += &self.iteration[i].to_string();
@@ -74,21 +74,21 @@ impl Progress {
         ret += ")";
         ret
     }
-    fn get_reference(&self) -> String {
+    pub fn get_reference(&self) -> String {
         self.refs.clone()
     }
-    fn increment(&mut self, refs: String, iteration: Vec<i32>) {
+    pub fn increment(&mut self, refs: String, iteration: Vec<i32>) {
         self.refs = refs;
         self.iteration = iteration;
     }
-    fn increment_with_ref(&mut self, refs: String) {
+    pub fn increment_with_ref(&mut self, refs: String) {
         self.refs = refs;
     }
-    fn is_in_bound(&self) -> bool {
+    pub fn is_in_bound(&self) -> bool {
         assert!(self.iteration[0] >= self.chunk.first());
         self.iteration[0] <= self.chunk.second()
     }
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut ss = String::new();
         ss += "(";
         ss += &self.refs;
