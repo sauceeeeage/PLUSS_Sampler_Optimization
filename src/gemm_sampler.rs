@@ -23,6 +23,10 @@ use crate::chunk::Chunk;
 use crate::progress::Progress;
 use crate::iteration::Iteration;
 use crate::chunk_dispatcher::chunk_dispatcher;
+use crate::utils;
+
+// #[path = "utils.rs"]
+// mod utils;
 
 // #[path = "chunk_dispatcher.rs"]
 // mod chunk_dispatcher;
@@ -37,35 +41,10 @@ const CLS: usize = 64;
 
 static mut max_iteration_count: i64 = 0;
 
-fn get_addr_C0(idx0: i64, idx1: i64) -> u64 {
+fn get_addr(idx0: i64, idx1: i64) -> u64 {
     ///don't know if to change the input para to i64, i32 or usize
     let addr_C0: i64 = (idx0 * 128) + (idx1 * 1);
     (addr_C0 * (DS as i64) / (CLS as i64)) as u64
-}
-
-fn get_addr_B0(idx0: i64, idx1: i64) -> i64 {
-    let addr_B0: i64 = (idx0 * 128) + (idx1 * 1);
-    addr_B0 * (DS as i64) / (CLS as i64)
-}
-
-fn get_addr_A0(idx0: i64, idx1: i64) -> i64 {
-    let addr_A0: i64 = (idx0 * 1) + (idx1 * 128);
-    addr_A0 * (DS as i64) / (CLS as i64)
-}
-
-fn get_addr_C1(idx0: i64, idx1: i64) -> i64 {
-    let addr_C1: i64 = (idx0 * 128) + (idx1 * 1);
-    addr_C1 * (DS as i64) / (CLS as i64)
-}
-
-fn get_addr_C2(idx0: i64, idx1: i64) -> i64 {
-    let addr_C2: i64 = (idx0 * 128) + (idx1 * 1);
-    addr_C2 * (DS as i64) / (CLS as i64)
-}
-
-fn get_addr_C3(idx0: i64, idx1: i64) -> i64 {
-    let addr_C3: i64 = (idx0 * 128) + (idx1 * 1);
-    addr_C3 * (DS as i64) / (CLS as i64)
 }
 
 fn distance_to(x: u64, y: u64) -> u64 {
@@ -164,19 +143,19 @@ fn sampler() {
             // if (progress[tid_to_run]->ref == "C0") {
             // addr = GetAddress_C0(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
             if progress[tid].as_ref().unwrap().refs == "C0" {
-                let addr = get_addr_C0(
+                let addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
                 // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
-                if LAT_C[tid].contains_key(&(addr as u64)) {
+                if LAT_C[tid].contains_key(&(addr)) {
                     // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
-                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
                 // LAT_C[tid_to_run][addr] = count[tid_to_run];
-                LAT_C[tid].insert(addr as u64, count[tid]);
+                LAT_C[tid].insert(addr, count[tid]);
                 // count[tid_to_run]++;
                 count[tid] += 1;
                 progress[tid].as_mut().unwrap().increment_with_ref("C1".parse().unwrap());
@@ -186,19 +165,19 @@ fn sampler() {
             // if (progress[tid_to_run]->ref == "C1") {
             //     addr = GetAddress_C1(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
             if progress[tid].as_ref().unwrap().refs == "C1" {
-                let addr = get_addr_C1(
+                let addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
                 // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
-                if LAT_C[tid].contains_key(&(addr as u64)) {
+                if LAT_C[tid].contains_key(&(addr)) {
                     // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
-                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    pluss_cri_noshare_histogram_update(tid, reuse, 1); // TODO: !!!!!
+                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
                 // LAT_C[tid_to_run][addr] = count[tid_to_run];
-                LAT_C[tid].insert(addr as u64, count[tid]);
+                LAT_C[tid].insert(addr, count[tid]);
                 // count[tid_to_run]++;
                 count[tid] += 1;
                 // CASE 2
@@ -207,28 +186,28 @@ fn sampler() {
                 continue;
             } /* end of check to C1 */
             if progress[tid].as_ref().unwrap().refs == "A0" {
-                let addr = get_addr_A0(
+                let addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[2] as i64,
                 );
-                if LAT_A[tid].contains_key(&(addr as u64)) {
-                    let reuse: i64 = count[tid] - LAT_A[tid].get(&(addr as u64)).unwrap();
+                if LAT_A[tid].contains_key(&(addr)) {
+                    let reuse: i64 = count[tid] - LAT_A[tid].get(&(addr)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
-                LAT_A[tid].insert(addr as u64, count[tid]);
+                LAT_A[tid].insert(addr, count[tid]);
                 count[tid] += 1;
                 // CASE 2
                 progress[tid].as_mut().unwrap().increment_with_ref("B0".parse().unwrap());
                 continue;
             } /* end of check to A0 */
             if progress[tid].as_ref().unwrap().refs == "B0" {
-                let addr = get_addr_B0(
+                let addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[2] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 ); // don't really understand why the iteration is 2 and 1 here and also in other places
-                if LAT_B[tid].contains_key(&(addr as u64)) {
-                    let reuse: i64 = count[tid] - LAT_B[tid].get(&(addr as u64)).unwrap();
+                if LAT_B[tid].contains_key(&(addr)) {
+                    let reuse: i64 = count[tid] - LAT_B[tid].get(&(addr)).unwrap();
                     /* Compare c2*/
                     /* With c2*/
                     /* With c1*/
@@ -240,41 +219,41 @@ fn sampler() {
                     // if (distance_to(reuse,0) > distance_to(reuse,(((1)*((128-0)/1)+1)*((128-0)/1)+1))) {
                     if distance_to(reuse as u64, 0) > distance_to(reuse as u64, 16513) { //don't really understand why 16513 is used here
                         // pluss_cri_share_histogram_update(tid_to_run,THREAD_NUM-1,reuse,1);
-                        // pluss_cri_share_histogram_update(tid, THREAD_NUM - 1, reuse, 1); TODO: !!!!!
+                        // utils::pluss_cri_share_histogram_update(tid, THREAD_NUM - 1, reuse, 1); TODO: !!!!!!!!!!!!
                     } else {
                         // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                        // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                        utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                     }
                 }
-                LAT_B[tid].insert(addr as u64, count[tid]);
+                LAT_B[tid].insert(addr, count[tid]);
                 count[tid] += 1;
                 progress[tid].as_mut().unwrap().increment_with_ref("C2".parse().unwrap());
                 continue;
             } /* end of check to B0 */
             if progress[tid].as_ref().unwrap().refs == "C2" {
-                let addr = get_addr_C2(
+                let addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
-                if LAT_C[tid].contains_key(&(addr as u64)) {
-                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                if LAT_C[tid].contains_key(&(addr)) {
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
-                LAT_C[tid].insert(addr as u64, count[tid]);
+                LAT_C[tid].insert(addr, count[tid]);
                 count[tid] += 1;
                 progress[tid].as_mut().unwrap().increment_with_ref("C3".parse().unwrap());
                 continue;
             } /* end of check to C2 */
             if progress[tid].as_ref().unwrap().refs == "C3" {
-                let addr = get_addr_C3(
+                let addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
-                if LAT_C[tid].contains_key(&(addr as u64)) {
-                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
+                if LAT_C[tid].contains_key(&(addr)) {
+                    let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None); 
                 }
                 // //CASE 3
                 // if ((progress[tid_to_run]->iteration[2] + 1)<128) {
