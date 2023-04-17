@@ -107,7 +107,6 @@ fn sampler() {
     //Threads are scheduled using static scheduling
     //Threads are interleaved using uniform interleaving
     loop_cnt += 1;
-    // dispatcher = ChunkDispatcher(CHUNK_SIZE,((128-0)),0,1); TODO: !!!!!
     dispatcher.new( CHUNK_SIZE as i32, 128, 0, 1);
 
 
@@ -196,7 +195,7 @@ fn sampler() {
                     // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
                     let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr as u64)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    // pluss_cri_noshare_histogram_update(tid, reuse, 1); TODO: !!!!!
+                    pluss_cri_noshare_histogram_update(tid, reuse, 1); // TODO: !!!!!
                 }
                 // LAT_C[tid_to_run][addr] = count[tid_to_run];
                 LAT_C[tid].insert(addr as u64, count[tid]);
@@ -354,7 +353,6 @@ fn sampler() {
     // }
 
     idle_threads.fill(0);
-    // progress.fill(None); this is not in the cpp file, but seems like it should be, b/c the comment above says to reset both lists
 
     //update and clear the lists
     update_and_clear_array(&mut LAT_C);

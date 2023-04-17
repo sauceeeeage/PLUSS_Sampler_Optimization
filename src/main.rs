@@ -5,6 +5,7 @@ mod iteration;
 mod pluss_aet;
 mod progress;
 mod chunk;
+mod utils;
 
 fn main() {
     let p = test::cParams::new();
