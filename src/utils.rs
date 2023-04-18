@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
 
 type Histogram = HashMap<i64, f64>;
+
 const THREAD_NUM: usize = 4;
 
 lazy_static! {
@@ -92,20 +93,31 @@ pub(crate) fn pluss_print_histogram() {
 }
 
 pub(crate) fn pluss_print_mrc() {
-    //TODO: have not finished yet
     println!("miss ratio");
     let mrc = _MRC.lock().unwrap();
     let mut it1 = mrc.iter();
-
-    while let Some((k1, v1)) = it1.next() {
-        while let Some((_, v3)) = it1.clone().skip(1).next() { // not certain....
-            println!("{}, {}", k1, v1);
-            if v1 - v3 < 0.00001 {
-                it1.next();
-                println!("{}, {}", k1, v1);
+    let mut it2 = mrc.iter();
+    while !it1.clone().next().is_none() {
+        let (mut it1_first, mut it1_second) = it1.next().unwrap();
+        let (mut it2_first, mut it2_second) = it2.next().unwrap();
+        loop {
+            let mut it3 = it2.clone();
+            let (mut it3_first, mut it3_second) = it3.next().unwrap();
+            it3.next();
+            if it3.clone().next().is_none() {
+                break;
+            }
+            if (it1_second - it3_second) < 0.00001 {
+                it2.next();
             } else {
                 break;
             }
         }
+        println!("{}, {}", it1_first, it1_second);
+        if !it1.eq(it2.clone()) {
+            println!("{}, {}", it2_first, it2_second);
+        }
+        it2.next();
+        it1 = it2.clone();
     }
 }
