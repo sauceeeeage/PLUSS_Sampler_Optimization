@@ -23,7 +23,7 @@ use crate::chunk::Chunk;
 use crate::progress::Progress;
 use crate::iteration::Iteration;
 use crate::chunk_dispatcher::chunk_dispatcher;
-use crate::utils;
+use crate::{pluss_aet, utils};
 
 // #[path = "utils.rs"]
 // mod utils;
@@ -113,7 +113,7 @@ fn sampler() {
                 // }
                 // idle_threads[tid] = 0;
                 let c: Chunk = dispatcher.get_next_static_chunk(tid as u32);
-                let mut parallel_iteration_vector: Vec<i32> = Default::default();
+                let mut parallel_iteration_vector: Vec<i32> = Vec::new();
                 parallel_iteration_vector.push(c.first());
                 parallel_iteration_vector.push(0);
                 if progress[tid].is_some() {
@@ -351,18 +351,17 @@ fn sampler() {
 
 fn main(){
     // pluss_timer_start();
-    // sampler();
+    sampler();
     // pluss_cri_distribute(THREAD_NUM);
-    // pluss_AET();
+    pluss_aet::pluss_aet();
     // pluss_timer_stop();
     // pluss_timer_print();
-    // pluss_cri_noshare_print_histogram();
-    // pluss_cri_share_print_histogram();
-    // pluss_print_histogram();
-    // pluss_print_mrc();
-    // cout << "max iteration traversed" << endl;
-    // cout << max_iteration_count << endl;
-    // return 0;
-
+    utils::pluss_cri_noshare_print_histogram();
+    utils::pluss_cri_share_print_histogram();
+    utils::pluss_print_histogram();
+    utils::pluss_print_mrc();
+    unsafe {
+        println!("max iteration traversed: {}", max_iteration_count);
+    }
 }
 

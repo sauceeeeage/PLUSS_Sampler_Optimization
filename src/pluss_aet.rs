@@ -14,7 +14,7 @@ lazy_static!{
 // pub static mut PAR_RI_HIST: Arc<Mutex<HashMap<i64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
 // pub static mut MRC: Arc<Mutex<HashMap<u64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
 
-fn pluss_aet() {
+pub(crate) fn pluss_aet() {
     let mut p: HashMap<u64, f64> = HashMap::new();
     let mut histogram: HashMap<i64, f64> = HashMap::new();
     let mut total_num_rt = 0.0;
