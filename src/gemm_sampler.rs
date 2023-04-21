@@ -352,7 +352,7 @@ fn sampler() {
 fn main(){
     // pluss_timer_start();
     sampler();
-    // pluss_cri_distribute(THREAD_NUM);
+    utils::pluss_cri_distribute(THREAD_NUM as i32);
     pluss_aet::pluss_aet();
     // pluss_timer_stop();
     // pluss_timer_print();

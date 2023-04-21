@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
+use statrs::distribution::{Discrete, NegativeBinomial};
 
 type Histogram = HashMap<i64, f64>;
 
@@ -136,8 +137,9 @@ pub(crate) fn _pluss_cri_nbd(thread_cnt: i32, n: i64, dist: &mut Histogram){
     let mut k: i64 = 0;
     let mut nbd_prob: f64 = 0.0;
     let mut prob_sum: f64 = 0.0;
+    let nb = NegativeBinomial::new(p, n as f64).unwrap();
     loop {
-        // nbd_prob = rgsl::gsl_ran_negative_binomial_pdf(k, p, n as f64); TODO: Don't know which crate this is in!!!!
+        nbd_prob = nb.pmf(k as u64); // this should work; see lib.rs for more info
         prob_sum += nbd_prob;
         dist.insert(k + n, nbd_prob);
         if prob_sum > 0.9999 {

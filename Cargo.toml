@@ -13,6 +13,7 @@ GSL = "6.0.0"
 derivative = "2.2.0"
 lazy_static = "1.4"
 rayon = "1.7.0"
+statrs = "0.16.0"
 
 [build-dependencies]
 cbindgen = "0.24.3"
