@@ -32,6 +32,7 @@ dependencies = [
  "cc",
  "derivative",
  "lazy_static",
+ "libc",
  "rayon",
  "statrs",
 ]

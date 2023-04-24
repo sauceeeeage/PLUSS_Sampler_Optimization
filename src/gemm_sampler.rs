@@ -4,6 +4,14 @@ extern "C"{
     fn hasNextChunk(isStatic: bool) -> bool;
 }
 
+#[link(name = "pluss")]
+extern "C" {
+    fn pluss_timer_start();
+    fn pluss_timer_stop();
+    fn pluss_timer_print();
+}
+
+
 use std::collections::HashMap;
 use std::iter::Map;
 use std::process::id;
@@ -350,12 +358,16 @@ fn sampler() {
 }
 
 fn main(){
-    // pluss_timer_start();
+    unsafe{
+        pluss_timer_start();
+    }
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
     pluss_aet::pluss_aet();
-    // pluss_timer_stop();
-    // pluss_timer_print();
+    unsafe {
+        pluss_timer_stop();
+        pluss_timer_print();
+    }
     utils::pluss_cri_noshare_print_histogram();
     utils::pluss_cri_share_print_histogram();
     utils::pluss_print_histogram();
