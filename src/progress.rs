@@ -86,6 +86,7 @@ impl Progress {
     }
     pub fn is_in_bound(&self) -> bool {
         assert!(self.iteration[0] >= self.chunk.first());
+        // println!("{} <= {}", self.iteration[0], self.chunk.second());
         self.iteration[0] <= self.chunk.second()
     }
     pub fn to_string(&self) -> String {

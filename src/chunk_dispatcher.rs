@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
-use rgsl::rng::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::time::Instant;
 use std::time::Duration;
@@ -101,11 +100,13 @@ impl chunk_dispatcher {
         // for (int t = 0; t < THREAD_NUM; t++) {
         // this->per_thread_start_point[t] = (this->start + (this->chunk_size*this->step) * t);
         // }
-        self.avail_chunk = if self.trip % self.chunk_size == 0 {
-            self.trip / self.chunk_size
-        } else {
-            self.trip / self.chunk_size + 1
-        };
+        if self.chunk_size != 0 {
+            self.avail_chunk = if self.trip % self.chunk_size == 0 {
+                self.trip / self.chunk_size
+            } else {
+                self.trip / self.chunk_size + 1
+            };
+        }
 
         if self.step > 0 {
             self.lb = self.start;
@@ -123,7 +124,6 @@ impl chunk_dispatcher {
             };
         }
 
-        let mut per_thread_start_point = [0; THREAD_NUM];
         for t in 0..THREAD_NUM {
             self.per_thread_start_point[t] = self.start + (self.chunk_size * self.step) * (t as i32);
         }
@@ -155,6 +155,61 @@ impl chunk_dispatcher {
             per_thread_start_point: [0; THREAD_NUM],
         };
         self.init(); //FIXME: not sure if this is correct, if put it before the assignment
+    }
+
+    pub fn new_with_para(&mut self, chunk_size: i32, trip: i32, start_point: i32, step: i32) {
+        // // it is possible that the chunk_size is greater than the trip count
+        // this->chunk_size = chunk_size;
+        // this->trip = trip;
+        // this->start = start_point;
+        // this->step = step;
+        // this->last = start_point + (trip - 1) * step; // the last iteration
+        // // the range of the parallel loop will in [start, last]
+        // this->avail_chunk = (trip % chunk_size) == 0 ? trip / chunk_size : trip / chunk_size + 1;
+        //
+        // // the lb and ub of the first chunk (dynamic scheduling only)
+        // if (step > 0) {
+        //     this->lb = start_point;
+        //     this->ub = (this->lb + (chunk_size-1)*step) <= this->last ? (this->lb + (chunk_size-1)*step) : this->last;
+        // } else {
+        //     this->ub = start_point;
+        //     this->lb = (this->ub + (chunk_size-1)*step) >= this->trip ? (this->ub + (chunk_size-1)*step) : this->last;
+        // }
+        //
+        // // assign the start chunk of each thread (static scheduling only)
+        // for (int t = 0; t < THREAD_NUM; t++) {
+        //     this->per_thread_start_point.push_back(start_point + (chunk_size*step) * t);
+        // }
+        self.chunk_size = chunk_size;
+        self.trip = trip;
+        self.start = start_point;
+        self.step = step;
+        self.last = start_point + (trip - 1) * step; // the last iteration
+        self.avail_chunk = if trip % chunk_size == 0 {
+            trip / chunk_size
+        } else {
+            trip / chunk_size + 1
+        };
+
+        if step > 0 {
+            self.lb = start_point;
+            self.ub = if self.lb + (chunk_size - 1) * step <= self.last {
+                self.lb + (chunk_size - 1) * step
+            } else {
+                self.last
+            };
+        } else {
+            self.ub = start_point;
+            self.lb = if self.ub + (chunk_size - 1) * step >= self.trip {
+                self.ub + (chunk_size - 1) * step
+            } else {
+                self.last
+            };
+        }
+
+        for t in 0..THREAD_NUM {
+            self.per_thread_start_point[t] = start_point + (chunk_size * step) * (t as i32);
+        }
     }
 
     pub fn new_with_default() -> Self {
@@ -257,6 +312,11 @@ impl chunk_dispatcher {
         let curr = Chunk::new(retlb, retub);
         self.per_thread_start_point[tid as usize] += self.chunk_size * THREAD_NUM as i32 * self.step;
         curr
+    }
+
+    pub fn print(&self) {
+        println!("lb: {}, ub: {}, chunk_size: {}, trip: {}, start: {}, last: {}, step: {}, avail_chunk: {}, per_thread_start_point: {:?}",
+            self.lb, self.ub, self.chunk_size, self.trip, self.start, self.last, self.step, self.avail_chunk, self.per_thread_start_point);
     }
     
 }

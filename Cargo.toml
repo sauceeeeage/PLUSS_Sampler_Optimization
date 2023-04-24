@@ -6,20 +6,24 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 repository = "https://github.com/sauceeeeage/PLUSS_Sampler_Optimization.git"
 
-build = "build.rs"
 
 [dependencies]
-GSL = "6.0.0"
+#GSL = "6.0.0"
 derivative = "2.2.0"
 lazy_static = "1.4"
-rayon = "1.7.0"
+#rayon = "1.7.0"
 statrs = "0.16.0"
 libc = "0.2"
 
-[build-dependencies]
-cbindgen = "0.24.3"
-bindgen = "0.65.1"
-cc = "1.0.79"
+#[build-dependencies]
+#cbindgen = "0.24.3"
+#bindgen = "0.65.1"
+##cc = "1.0.79"
 
 [build]
-rustflags = ["-L", "c_lib", "-lpluss"]
+rustflags = ["-L", "c_lib", "--extern", "pluss=libpluss.a"]
+#rustflags = ["-L", "c_lib", "-lpluss"]
+
+
+#[extern]
+#pluss =/c_lib/libpluss.a -Lc_lib

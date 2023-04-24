@@ -15,7 +15,31 @@ lazy_static! {
     static ref _RIHist: Mutex<Histogram> = Mutex::new(Histogram::new());
     static ref _MRC: Mutex<HashMap<u64, f64>> = Mutex::new(HashMap::new());
     // static ref _NoSharePRI: Vec<Histogram> = vec![Histogram::new(); THREAD_NUM];
-    static ref _SharePRI: [HashMap<i64, Histogram>; THREAD_NUM] = Default::default(); //FIXME: i changed the inner hashmap to i64, Histogram instead of i32, Histogram
+    static ref _SharePRI: Arc<Mutex<[HashMap<i64, Histogram>; THREAD_NUM]>> = Default::default(); //FIXME: i changed the inner hashmap to i64, Histogram instead of i32, Histogram
+}
+
+pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse: i64, count: f64) {
+    // inline void pluss_cri_share_histogram_update(int tid, int share_ratio, long reuse, double count)
+    // {
+    //     // if (reuse > 0)
+    //     // 	reuse = _polybench_to_highest_power_of_two(reuse);
+    //     if (_SharePRI[tid].find(share_ratio) != _SharePRI[tid].end()) {
+    //         _pluss_histogram_update(_SharePRI[tid][share_ratio], reuse, count, false);
+    //     } else {
+    //         _SharePRI[tid][share_ratio][reuse] = count;
+    //     }
+    // }
+    let share_ratio = share_ratio as i64;
+    let mut local_share_pri = _SharePRI.lock().unwrap();
+    if local_share_pri[tid as usize].contains_key(&share_ratio) {
+        let mut histogram = local_share_pri[tid as usize].get(&share_ratio).unwrap().clone();
+        _pluss_histogram_update(&mut histogram, reuse, count, Some(false));
+        local_share_pri[tid as usize].insert(share_ratio, histogram);
+    } else {
+        let mut histogram = HashMap::new();
+        histogram.insert(reuse, count);
+        local_share_pri[tid as usize].insert(share_ratio, histogram);
+    }
 }
 
 pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f64, in_log_format: Option<bool>) {
@@ -32,6 +56,7 @@ pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f6
     } else {
         histogram[tid].insert(local_reuse, cnt);
     }
+    // println!("histogram: {:?}", histogram);
 }
 
 pub(crate) fn _polybench_to_highest_power_of_two(mut x: i64) -> i64 {
@@ -82,8 +107,9 @@ pub(crate) fn pluss_cri_noshare_print_histogram() {
 
 pub(crate) fn pluss_cri_share_print_histogram() {
     let mut share_rih_tmp = HashMap::new();
+    let local_share_pri = _SharePRI.lock().unwrap();
     for i in 0..THREAD_NUM {
-        for (_, v) in &_SharePRI[i] {
+        for (_, v) in &local_share_pri[i] {
             for (kk, vv) in v {
                 _pluss_histogram_update(&mut share_rih_tmp, *kk, *vv, Some(false));
             }
@@ -137,9 +163,9 @@ pub(crate) fn _pluss_cri_nbd(thread_cnt: i32, n: i64, dist: &mut Histogram){
     let mut k: i64 = 0;
     let mut nbd_prob: f64 = 0.0;
     let mut prob_sum: f64 = 0.0;
-    let nb = NegativeBinomial::new(p, n as f64).unwrap();
+    let nb = NegativeBinomial::new(n as f64, p).unwrap();
     loop {
-        nbd_prob = nb.pmf(k as u64); // this should work; see lib.rs for more info
+        nbd_prob = nb.pmf(k as u64); // this should work
         prob_sum += nbd_prob;
         dist.insert(k + n, nbd_prob);
         if prob_sum > 0.9999 {
@@ -152,7 +178,8 @@ pub(crate) fn _pluss_cri_nbd(thread_cnt: i32, n: i64, dist: &mut Histogram){
 pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
     let mut thread_cnt = thread_cnt.unwrap_or(THREAD_NUM as i32);
     let mut merged_dist: HashMap<i64, Histogram> = Default::default(); //FIXME: i also changed this i32 to i64 as well
-    for hash in _SharePRI.iter(){
+    let mut local_share_pri = _SharePRI.lock().unwrap();
+    for hash in local_share_pri.iter(){
         for (k, v) in hash{ // share entry
             if merged_dist.contains_key(k){
                 for (k1, v1) in v{ // reuse entry
@@ -231,7 +258,7 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
         }
     }
     let mut dist_clone ;
-    for (k, v) in merge_dist {
+    for (k, v) in merge_dist.clone() {
         if k < 0 {
             pluss_histogram_update(k, v);
             continue;
@@ -239,7 +266,8 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
         if thread_cnt > 1 {
             dist_clone = dist.clone();
             _pluss_cri_nbd(thread_cnt, k, &mut dist_clone); // update dist
-            for (kk, vv) in dist_clone {
+            dist = dist_clone.clone();
+            for (kk, vv) in dist.clone() {
                 let ri_to_distribute = kk;
                 pluss_histogram_update(ri_to_distribute, v * vv);
             }
@@ -247,7 +275,9 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
         } else {
             pluss_histogram_update(k, v);
         } // end of if(thread_cnt > 1)
+        println!("pluss_cri_noshare_distribute: {:?}", merge_dist.clone());
     }
+    println!("pluss_cri_noshare_distribute: {:?}", merge_dist.clone());
 } // end of void pluss_cri_noshare_distribute()
 
 pub(crate) fn pluss_cri_distribute(thread_cnt: i32){

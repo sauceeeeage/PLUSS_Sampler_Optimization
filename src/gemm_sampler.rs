@@ -1,15 +1,9 @@
-extern "C"{
-    fn reset();
-    fn getCurrentChunkRange() -> String;
-    fn hasNextChunk(isStatic: bool) -> bool;
-}
-
-#[link(name = "pluss")]
-extern "C" {
-    fn pluss_timer_start();
-    fn pluss_timer_stop();
-    fn pluss_timer_print();
-}
+// #[link(name = "pluss")]
+// extern "C" {
+//     fn pluss_timer_start();
+//     fn pluss_timer_stop();
+//     fn pluss_timer_print();
+// }
 
 
 use std::collections::HashMap;
@@ -25,7 +19,7 @@ use std::sync::mpsc::channel;
 // use derivative::Derivative;
 // use rgsl::rng::Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
-use rayon::prelude::*;
+// use rayon::prelude::*;
 
 use crate::chunk::Chunk;
 use crate::progress::Progress;
@@ -65,7 +59,7 @@ fn distance_to(x: u64, y: u64) -> u64 {
 
 fn update_and_clear_array(array: &mut [HashMap<u64, i64>]) {
     for i in 0..array.len() {
-        // pluss_cri_noshare_histogram_update(i, -1, LAT_C[i].len());
+        utils::pluss_cri_noshare_histogram_update(i, -1, array.len() as f64, None);
         array[i].clear();
     }
 }
@@ -78,8 +72,8 @@ fn sampler() {
     let mut progress: [Option<Progress>; THREAD_NUM] = Default::default();
     let mut idle_threads: [i32; THREAD_NUM] = Default::default();
     let mut subscripts: Vec<i32> = Default::default();
-    // let mut dispatcher = chunk_dispatcher::chunk_dispatcher::new_with_default();
     let mut dispatcher = chunk_dispatcher::new_with_default();
+    let mut tid_to_run: i32 = 0;
     let mut start_tid: i32 = 0;
     let mut working_threads: i32 = THREAD_NUM as i32;
     let mut addr: u64 = 0;
@@ -94,8 +88,8 @@ fn sampler() {
     //Threads are scheduled using static scheduling
     //Threads are interleaved using uniform interleaving
     loop_cnt += 1;
-    dispatcher.new( CHUNK_SIZE as i32, 128, 0, 1);
-
+    dispatcher.new_with_para( CHUNK_SIZE as i32, 128, 0, 1);
+    dispatcher.print();
 
     for tid in 0..THREAD_NUM {
         idle_threads[tid] = 1;
@@ -104,9 +98,12 @@ fn sampler() {
     // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
     // for (tid = 0; tid < THREAD_NUM; tid++) {
     for tid in 0..THREAD_NUM {
+        println!("tid: {}", tid);
         loop {
             // if (idle_threads[tid] == 1 && dispatcher.hasNextChunk(1)) {
+            // println!("in the loop, and idle_threads[tid] is: {}", idle_threads[tid]);
             if idle_threads[tid] == 1 && dispatcher.has_next_chunk(true) {
+                println!("in the if, and idle_threads[tid] is: {}", idle_threads[tid]);
                 // Chunk c = dispatcher.getNextStaticChunk(tid);
                 // vector<int> parallel_iteration_vector;
                 // parallel_iteration_vector.push_back(c.first);
@@ -121,20 +118,24 @@ fn sampler() {
                 // }
                 // idle_threads[tid] = 0;
                 let c: Chunk = dispatcher.get_next_static_chunk(tid as u32);
+                println!("c.first: {}, c.second: {}", c.first(), c.second());
                 let mut parallel_iteration_vector: Vec<i32> = Vec::new();
                 parallel_iteration_vector.push(c.first());
                 parallel_iteration_vector.push(0);
+                println!("parallel_iteration_vector: {:?}", parallel_iteration_vector);
                 if progress[tid].is_some() {
                     // *progress[tid].unwrap().refs = "C0".parse().unwrap();
                     // *progress[tid].unwrap().iteration = parallel_iteration_vector;
                     // let mut a = (progress[tid].unwrap()).as_ref();
                     // a.chunk = c;
                     // let mut p: &'static Progress = Box::leak(progress[tid].unwrap().to_owned().into());
+                    println!("progress[tid].as_mut().unwrap().refs: {}", progress[tid].as_mut().unwrap().refs);
                     progress[tid].as_mut().unwrap().refs = "C0".parse().unwrap();
                     progress[tid].as_mut().unwrap().iteration = parallel_iteration_vector;
                     progress[tid].as_mut().unwrap().chunk = c;
                 } else {
                     let p = Progress::new_with_ref("C0".parse().unwrap(), parallel_iteration_vector, c);
+                    println!("p.refs: {}", p.refs);
                     progress[tid] = Some(p);
                 }
                 idle_threads[tid] = 0;
@@ -144,21 +145,25 @@ fn sampler() {
             //     idle_threads[tid] = 1;
                 // break;
             // }
-            if progress[tid].is_none() || !progress[tid].as_ref().unwrap().is_in_bound() {
+            if progress[tid].is_none() || !progress[tid].as_ref().unwrap().is_in_bound() { //FIXME: don't know if the second condition needs ! or not
+                println!("in the else if, and progress[tid].is_none() is: {}", progress[tid].is_none());
+                println!("in the else if, and progress[tid].as_ref().unwrap().is_in_bound() is: {}", progress[tid].as_ref().unwrap().is_in_bound());
                 idle_threads[tid] = 1;
                 break;
             }
             // if (progress[tid_to_run]->ref == "C0") {
             // addr = GetAddress_C0(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
             if progress[tid].as_ref().unwrap().refs == "C0" {
-                let addr = get_addr(
+                // println!("in the C0 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
+                addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
                 // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
                 if LAT_C[tid].contains_key(&(addr)) {
-                    // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
+                    // long reuse = [count][tid_to_run] - LAT_C[tid_to_run][addr];
                     let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr)).unwrap();
+                    // println!("reuse in LAT_C: {}", reuse);
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                     utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
@@ -166,6 +171,7 @@ fn sampler() {
                 LAT_C[tid].insert(addr, count[tid]);
                 // count[tid_to_run]++;
                 count[tid] += 1;
+                // println!("count[tid]: {}", count[tid]);
                 progress[tid].as_mut().unwrap().increment_with_ref("C1".parse().unwrap());
                 continue;
             } /* end of check to C0 */
@@ -173,7 +179,8 @@ fn sampler() {
             // if (progress[tid_to_run]->ref == "C1") {
             //     addr = GetAddress_C1(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
             if progress[tid].as_ref().unwrap().refs == "C1" {
-                let addr = get_addr(
+                // println!("in the C1 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
+                addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
@@ -188,13 +195,15 @@ fn sampler() {
                 LAT_C[tid].insert(addr, count[tid]);
                 // count[tid_to_run]++;
                 count[tid] += 1;
+                // println!("count[tid]: {}", count[tid]);
                 // CASE 2
                 progress[tid].as_mut().unwrap().iteration.push(0);
                 progress[tid].as_mut().unwrap().increment_with_ref("A0".parse().unwrap());
                 continue;
             } /* end of check to C1 */
             if progress[tid].as_ref().unwrap().refs == "A0" {
-                let addr = get_addr(
+                // println!("in the A0 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
+                addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[2] as i64,
                 );
@@ -205,12 +214,14 @@ fn sampler() {
                 }
                 LAT_A[tid].insert(addr, count[tid]);
                 count[tid] += 1;
+                // println!("count[tid]: {}", count[tid]);
                 // CASE 2
                 progress[tid].as_mut().unwrap().increment_with_ref("B0".parse().unwrap());
                 continue;
             } /* end of check to A0 */
             if progress[tid].as_ref().unwrap().refs == "B0" {
-                let addr = get_addr(
+                // println!("in the B0 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
+                addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[2] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 ); // don't really understand why the iteration is 2 and 1 here and also in other places
@@ -227,7 +238,7 @@ fn sampler() {
                     // if (distance_to(reuse,0) > distance_to(reuse,(((1)*((128-0)/1)+1)*((128-0)/1)+1))) {
                     if distance_to(reuse as u64, 0) > distance_to(reuse as u64, 16513) { //don't really understand why 16513 is used here
                         // pluss_cri_share_histogram_update(tid_to_run,THREAD_NUM-1,reuse,1);
-                        // utils::pluss_cri_share_histogram_update(tid, THREAD_NUM - 1, reuse, 1); TODO: !!!!!!!!!!!!
+                        utils::pluss_cri_share_histogram_update(tid as i32, (THREAD_NUM - 1) as i32, reuse, 1 as f64);
                     } else {
                         // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                         utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
@@ -235,11 +246,13 @@ fn sampler() {
                 }
                 LAT_B[tid].insert(addr, count[tid]);
                 count[tid] += 1;
+                // println!("count[tid]: {}", count[tid]);
                 progress[tid].as_mut().unwrap().increment_with_ref("C2".parse().unwrap());
                 continue;
             } /* end of check to B0 */
             if progress[tid].as_ref().unwrap().refs == "C2" {
-                let addr = get_addr(
+                // println!("in the C2 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
+                addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
@@ -250,11 +263,13 @@ fn sampler() {
                 }
                 LAT_C[tid].insert(addr, count[tid]);
                 count[tid] += 1;
+                // println!("count[tid]: {}", count[tid]);
                 progress[tid].as_mut().unwrap().increment_with_ref("C3".parse().unwrap());
                 continue;
             } /* end of check to C2 */
             if progress[tid].as_ref().unwrap().refs == "C3" {
-                let addr = get_addr(
+                // println!("in the C3 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
+                addr = get_addr(
                     progress[tid].as_ref().unwrap().iteration[0] as i64,
                     progress[tid].as_ref().unwrap().iteration[1] as i64,
                 );
@@ -286,11 +301,13 @@ fn sampler() {
                 //     continue;
                 // } /* end of check to C3 */
                 if (progress[tid].as_ref().unwrap().iteration[2] + 1) < 128 {
+                    // println!("going to A0 from C3, CASE 3");
                     progress[tid].as_mut().unwrap().iteration[2] = progress[tid].as_ref().unwrap().iteration[2] + 1;
                     progress[tid].as_mut().unwrap().increment_with_ref("A0".parse().unwrap());
                     continue;
                 } /* end of check to C3 */
                 if (progress[tid].as_ref().unwrap().iteration[1] + 1) < 128 {
+                    // println!("going to C0 from C3, CASE 1");
                     progress[tid].as_mut().unwrap().iteration[1] = progress[tid].as_ref().unwrap().iteration[1] + 1;
                     progress[tid].as_mut().unwrap().iteration.pop(); //may need to unwrap???
                     progress[tid].as_mut().unwrap().increment_with_ref("C0".parse().unwrap());
@@ -299,6 +316,7 @@ fn sampler() {
                 //CASE 1
                 progress[tid].as_mut().unwrap().iteration[0] = progress[tid].as_ref().unwrap().iteration[0] + 1;
                 if progress[tid].as_ref().unwrap().is_in_bound() {
+                    // println!("going to C0 from C3, CASE 1");
                     progress[tid].as_mut().unwrap().iteration.pop();
                     progress[tid].as_mut().unwrap().iteration.pop();
                     progress[tid].as_mut().unwrap().iteration.push(0);
@@ -354,20 +372,27 @@ fn sampler() {
     }
     unsafe {
         max_iteration_count = count.iter().sum();
+        println!("count: {:?}", count);
+        // println!("max iteration traversed: {}", max_iteration_count);
     }
 }
 
-fn main(){
-    unsafe{
-        pluss_timer_start();
-    }
+pub(crate) fn main(){
+    // unsafe{
+    //     pluss_timer_start();
+    // }
+    //use timer to measure the time
+    println!("Start sampling");
+    let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
     pluss_aet::pluss_aet();
-    unsafe {
-        pluss_timer_stop();
-        pluss_timer_print();
-    }
+    let end = start.elapsed();
+    println!("Time elapsed in parallel is: {:?}", end);
+    // unsafe {
+    //     pluss_timer_stop();
+    //     pluss_timer_print();
+    // }
     utils::pluss_cri_noshare_print_histogram();
     utils::pluss_cri_share_print_histogram();
     utils::pluss_print_histogram();
