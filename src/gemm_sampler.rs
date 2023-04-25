@@ -26,6 +26,7 @@ use crate::progress::Progress;
 use crate::iteration::Iteration;
 use crate::chunk_dispatcher::chunk_dispatcher;
 use crate::{pluss_aet, utils};
+use tracing::{info, error, warn, debug, trace, instrument, span, Level};
 
 // #[path = "utils.rs"]
 // mod utils;
@@ -59,7 +60,7 @@ fn distance_to(x: u64, y: u64) -> u64 {
 
 fn update_and_clear_array(array: &mut [HashMap<u64, i64>]) {
     for i in 0..array.len() {
-        utils::pluss_cri_noshare_histogram_update(i, -1, array.len() as f64, None);
+        utils::pluss_cri_noshare_histogram_update(i, -1, array[i].len() as f64, None);
         array[i].clear();
     }
 }
@@ -89,70 +90,42 @@ fn sampler() {
     //Threads are interleaved using uniform interleaving
     loop_cnt += 1;
     dispatcher.new_with_para( CHUNK_SIZE as i32, 128, 0, 1);
-    dispatcher.print();
+    // dispatcher.print();
 
     for tid in 0..THREAD_NUM {
         idle_threads[tid] = 1;
     }
 
     // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
-    // for (tid = 0; tid < THREAD_NUM; tid++) {
     for tid in 0..THREAD_NUM {
-        println!("tid: {}", tid);
         loop {
-            // if (idle_threads[tid] == 1 && dispatcher.hasNextChunk(1)) {
-            // println!("in the loop, and idle_threads[tid] is: {}", idle_threads[tid]);
             if idle_threads[tid] == 1 && dispatcher.has_next_chunk(true) {
-                println!("in the if, and idle_threads[tid] is: {}", idle_threads[tid]);
-                // Chunk c = dispatcher.getNextStaticChunk(tid);
-                // vector<int> parallel_iteration_vector;
-                // parallel_iteration_vector.push_back(c.first);
-                // parallel_iteration_vector.push_back(0 );
-                // if (progress[tid]) {
-                //     progress[tid]->ref = "C0";
-                //     progress[tid]->iteration = parallel_iteration_vector;
-                //     progress[tid]->chunk = c;
-                // } else {
-                //     Progress *p = new Progress("C0", parallel_iteration_vector, c);
-                //     progress[tid] = p;
-                // }
-                // idle_threads[tid] = 0;
                 let c: Chunk = dispatcher.get_next_static_chunk(tid as u32);
-                println!("c.first: {}, c.second: {}", c.first(), c.second());
+                // println!("c.first: {}, c.second: {}", c.first(), c.second());
                 let mut parallel_iteration_vector: Vec<i32> = Vec::new();
                 parallel_iteration_vector.push(c.first());
                 parallel_iteration_vector.push(0);
-                println!("parallel_iteration_vector: {:?}", parallel_iteration_vector);
+                // println!("parallel_iteration_vector: {:?}", parallel_iteration_vector);
                 if progress[tid].is_some() {
-                    // *progress[tid].unwrap().refs = "C0".parse().unwrap();
-                    // *progress[tid].unwrap().iteration = parallel_iteration_vector;
-                    // let mut a = (progress[tid].unwrap()).as_ref();
-                    // a.chunk = c;
-                    // let mut p: &'static Progress = Box::leak(progress[tid].unwrap().to_owned().into());
-                    println!("progress[tid].as_mut().unwrap().refs: {}", progress[tid].as_mut().unwrap().refs);
+                    // println!("progress[tid].as_mut().unwrap().refs: {}", progress[tid].as_mut().unwrap().refs);
                     progress[tid].as_mut().unwrap().refs = "C0".parse().unwrap();
                     progress[tid].as_mut().unwrap().iteration = parallel_iteration_vector;
                     progress[tid].as_mut().unwrap().chunk = c;
                 } else {
                     let p = Progress::new_with_ref("C0".parse().unwrap(), parallel_iteration_vector, c);
-                    println!("p.refs: {}", p.refs);
+                    // println!("p.refs: {}", p.refs);
                     progress[tid] = Some(p);
                 }
                 idle_threads[tid] = 0;
             } /* end of chunk availability check */
             //UNIFORM INTERLEAVING
-            // if (!progress[tid] || !progress[tid]->isInBound()) {
-            //     idle_threads[tid] = 1;
-                // break;
-            // }
             if progress[tid].is_none() || !progress[tid].as_ref().unwrap().is_in_bound() { //FIXME: don't know if the second condition needs ! or not
-                println!("in the else if, and progress[tid].is_none() is: {}", progress[tid].is_none());
-                println!("in the else if, and progress[tid].as_ref().unwrap().is_in_bound() is: {}", progress[tid].as_ref().unwrap().is_in_bound());
+                // println!("in the else if, and progress[tid].is_none() is: {}", progress[tid].is_none());
+                // println!("in the else if, and progress[tid].as_ref().unwrap().is_in_bound() is: {}", progress[tid].as_ref().unwrap().is_in_bound());
                 idle_threads[tid] = 1;
                 break;
             }
-            // if (progress[tid_to_run]->ref == "C0") {
-            // addr = GetAddress_C0(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
+            // println!("tid: {}, progress[tid].as_ref().unwrap().to_string: {}",tid, progress[tid].as_ref().unwrap().to_string());
             if progress[tid].as_ref().unwrap().refs == "C0" {
                 // println!("in the C0 if, and progress[tid].as_ref().unwrap().refs is: {}", progress[tid].as_ref().unwrap().refs);
                 addr = get_addr(
@@ -278,28 +251,8 @@ fn sampler() {
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                     utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None); 
                 }
-                // //CASE 3
-                // if ((progress[tid_to_run]->iteration[2] + 1)<128) {
-                //     progress[tid_to_run]->iteration[2] = (progress[tid_to_run]->iteration[2] + 1);
-                //     progress[tid_to_run]->increment("A0");
-                //     continue;
-                // } /* end of check to C3 */
-                // //CASE 1
-                // if ((progress[tid_to_run]->iteration[1] + 1)<128) {
-                //     progress[tid_to_run]->iteration[1] = (progress[tid_to_run]->iteration[1] + 1);
-                //     progress[tid_to_run]->iteration.pop_back();
-                //     progress[tid_to_run]->increment("C0");
-                //     continue;
-                // } /* end of check to C3 */
-                // //CASE 1
-                // progress[tid_to_run]->iteration[0] = (progress[tid_to_run]->iteration[0] + 1);
-                // if (progress[tid_to_run]->isInBound()) {
-                //     progress[tid_to_run]->iteration.pop_back();
-                //     progress[tid_to_run]->iteration.pop_back();
-                //     progress[tid_to_run]->iteration.emplace_back(0);
-                //     progress[tid_to_run]->increment("C0");
-                //     continue;
-                // } /* end of check to C3 */
+                LAT_C[tid].insert(addr, count[tid]);
+                count[tid] += 1;
                 if (progress[tid].as_ref().unwrap().iteration[2] + 1) < 128 {
                     // println!("going to A0 from C3, CASE 3");
                     progress[tid].as_mut().unwrap().iteration[2] = progress[tid].as_ref().unwrap().iteration[2] + 1;
@@ -328,34 +281,11 @@ fn sampler() {
                 idle_threads[tid] = 1;
             }
             if idle_threads[tid] == 1 && !dispatcher.has_next_chunk(true){
+                // println!("breaking from the while(true) loop");
                 break;
             } /* end of break condition check */
         } /* end of while(true) */
     } /* end of for(tid) */
-
-    // //reset both lists so they can be reused for later parallel loop
-    // idle_threads.fill(0);
-    // //Addresses in C with no data reuse will be marked as -1
-    // for (unsigned i = 0; i < LAT_C.size(); i++) {
-    //     pluss_cri_noshare_histogram_update(i,-1,LAT_C[i].size());
-    //     LAT_C[i].clear();
-    // }
-    // //Addresses in A with no data reuse will be marked as -1
-    // for (unsigned i = 0; i < LAT_A.size(); i++) {
-    //     pluss_cri_noshare_histogram_update(i,-1,LAT_A[i].size());
-    //     LAT_A[i].clear();
-    // }
-    // //Addresses in B with no data reuse will be marked as -1
-    // for (unsigned i = 0; i < LAT_B.size(); i++) {
-    //     pluss_cri_noshare_histogram_update(i,-1,LAT_B[i].size());
-    //     LAT_B[i].clear();
-    // }
-    // for (unsigned i = 0; i < progress.size(); i++) {
-    //     if (progress[i]) {
-    //         delete progress[i];
-    //         progress[i] = nullptr;
-    //     }
-    // }
 
     idle_threads.fill(0);
 
@@ -372,27 +302,18 @@ fn sampler() {
     }
     unsafe {
         max_iteration_count = count.iter().sum();
-        println!("count: {:?}", count);
+        // println!("count: {:?}", count);
         // println!("max iteration traversed: {}", max_iteration_count);
     }
 }
 
 pub(crate) fn main(){
-    // unsafe{
-    //     pluss_timer_start();
-    // }
-    //use timer to measure the time
-    println!("Start sampling");
     let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
     pluss_aet::pluss_aet();
     let end = start.elapsed();
     println!("Time elapsed in parallel is: {:?}", end);
-    // unsafe {
-    //     pluss_timer_stop();
-    //     pluss_timer_print();
-    // }
     utils::pluss_cri_noshare_print_histogram();
     utils::pluss_cri_share_print_histogram();
     utils::pluss_print_histogram();

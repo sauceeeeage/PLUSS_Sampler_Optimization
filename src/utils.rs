@@ -43,7 +43,7 @@ pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse
 }
 
 pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f64, in_log_format: Option<bool>) {
-    let in_log_format = in_log_format.unwrap_or(true);
+    let in_log_format = in_log_format.unwrap_or(false);
     let mut local_reuse = reuse; //FIXME: this may be wrong, it's in pluss_utils.h line 680
     let mut histogram = _NoSharePRI.lock().unwrap();
     if local_reuse > 0 && in_log_format {
@@ -155,9 +155,12 @@ pub(crate) fn pluss_print_mrc() {
 
 pub(crate) fn _pluss_cri_nbd(thread_cnt: i32, n: i64, dist: &mut Histogram){
     let p = 1.0 / thread_cnt as f64;
-    let compare: f64 = ((4000 as f64) * (thread_cnt - 1) as f64) / thread_cnt as f64;
-    if n >=  compare as i64 { // FIXME: very strange
-        dist.insert(n as i64, 1.0);
+    let thread_cnt = thread_cnt as i64;
+    let compare = ((4000 as f64) * (thread_cnt - 1) as f64) / thread_cnt as f64;
+    if n as f64 >=  compare { // FIXME: very strange
+        let tmp = n * thread_cnt;
+        // println!("n: {}, tmp: {}, thread_cnt: {}", n, tmp, thread_cnt);
+        dist.insert(tmp, 1.0);
         return;
     }
     let mut k: i64 = 0;
@@ -207,7 +210,9 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
         n = k as f64;
         for (k1, v1) in v{ // reuse entry
             if thread_cnt > 1{
-                _pluss_cri_nbd((1.0 / THREAD_NUM as f64) as i32, k1, &mut dist);
+                // println!("dist before: {:?}, k1: {}", dist, k1);
+                _pluss_cri_nbd(thread_cnt, k1, &mut dist);
+                // println!("dist after: {:?}", dist);
                 for (k2, v2) in dist.clone(){ // dist entry
                     ri_to_distribute = k2;
                     cnt_to_distribute = v1 * v2;
@@ -225,6 +230,7 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
                     }
                     for (k3, v3) in prob.clone(){ // bin
                         let new_ri = (2.0 as f64).powf(k3 as f64 - 1.0) as i64;
+                        // println!("new_ri:{}, v3:{}, cnt_to_distribute:{}, v3 * cnt_to_dist: {}", new_ri, v3, cnt_to_distribute, v3 * cnt_to_distribute);
                         pluss_histogram_update(new_ri, v3 * cnt_to_distribute);
                     }
                     prob.clear();
@@ -275,9 +281,9 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
         } else {
             pluss_histogram_update(k, v);
         } // end of if(thread_cnt > 1)
-        println!("pluss_cri_noshare_distribute: {:?}", merge_dist.clone());
+        // println!("pluss_cri_noshare_distribute: {:?}", merge_dist.clone());
     }
-    println!("pluss_cri_noshare_distribute: {:?}", merge_dist.clone());
+    // println!("pluss_cri_noshare_distribute: {:?}", merge_dist.clone());
 } // end of void pluss_cri_noshare_distribute()
 
 pub(crate) fn pluss_cri_distribute(thread_cnt: i32){

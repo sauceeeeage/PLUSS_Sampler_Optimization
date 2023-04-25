@@ -8,4 +8,4 @@ cargo build --release --bin RUST_PLUSS
 export RUST_BACKTRACE=1
 export RUST_LOG=info
 
-./target/release/RUST_PLUSS
+./target/release/RUST_PLUSS >> output.txt

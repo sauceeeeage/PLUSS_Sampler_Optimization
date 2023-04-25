@@ -6,9 +6,12 @@ type Histogram = HashMap<i64, f64>;
 
 // Arc<Mutex<T>> for globals
 lazy_static!{
-    pub static ref RIHIST: Arc<Mutex<Histogram>> = Arc::new(Mutex::new(HashMap::new()));
-    pub static ref PAR_RI_HIST: Arc<Mutex<HashMap<i64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
-    pub static ref MRC: Arc<Mutex<HashMap<u64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
+    // pub static ref RIHIST: Arc<Mutex<Histogram>> = Arc::new(Mutex::new(HashMap::new()));
+    // pub static ref PAR_RI_HIST: Arc<Mutex<HashMap<i64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
+    pub static ref MRC: Arc<Mutex<HashMap<u64, f64>>> = Default::default();
+    pub static ref RIHIST: Histogram = Default::default();
+    pub static ref PAR_RI_HIST: HashMap<i64, f64> = Default::default();
+    // pub static ref MRC: HashMap<u64, f64> = Default::default();
 }
 // pub static mut RIHIST: Arc<Mutex<Histogram>> = Arc::new(Mutex::new(HashMap::new()));
 // pub static mut PAR_RI_HIST: Arc<Mutex<HashMap<i64, f64>>> = Arc::new(Mutex::new(HashMap::new()));
@@ -20,7 +23,8 @@ pub(crate) fn pluss_aet() {
     let mut total_num_rt = 0.0;
     let mut max_rt: i64 = 0;
 
-    let rihist_guard = RIHIST.lock().unwrap();
+    // let rihist_guard = RIHIST.lock().unwrap();
+    let rihist_guard = &RIHIST;
     for (k, v) in rihist_guard.iter() {
         total_num_rt += *v;
         histogram.insert(*k, *v);
@@ -69,8 +73,10 @@ pub(crate) fn pluss_aet() {
 
         if mrc_pred != -1.0 {
             let mut mrc_guard = MRC.lock().unwrap();
+            // let mut mrc_guard = &MRC;
             mrc_guard.insert(c, p[&prev_t]);
         } else if mrc_pred - p[&prev_t] < 0.0001 {
+            // let mut mrc_guard = &MRC;
             let mut mrc_guard = MRC.lock().unwrap();
             mrc_guard.insert(c, p[&prev_t]);
             mrc_pred = p[&prev_t];
