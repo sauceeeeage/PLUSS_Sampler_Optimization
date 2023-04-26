@@ -105,14 +105,16 @@ fn sampler() {
 
     // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
 
-    (0..THREAD_NUM).into_par_iter().for_each(
+   /*  (0..THREAD_NUM).into_par_iter().for_each(
         // should be par_iter_mut or similar things...
-        |tid| {
+        |tid: usize| {
+            // println!("This is thread {}.", tid);
             let mut idle_threads = Arc::clone(&idle_threads);
             let mut dispatcher = Arc::clone(&dispatcher);
             // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
             // let this_progress = Arc::clone(&current_progress);
-            let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
+            // let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
+            let mut current_progress: Arc<Mutex<Option<Progress>>> = Arc::clone(&progress[tid]);
             let mut addr = Arc::clone(&addr);
             let mut count = Arc::clone(&count);
             let mut LAT_C = Arc::clone(&LAT_C);
@@ -130,15 +132,46 @@ fn sampler() {
                 &mut LAT_A,
                 &mut LAT_B,
             );
-        },
-    );
+        }
+    ); */
 
-    // for tid in 0..THREAD_NUM {
-    //     // let handle = thread::spawn(move || {
+    let mut handles = vec![];
+    for tid in 0..THREAD_NUM {
+        // println!("This is thread {}.xxxx", tid);
+        let mut dispatcher = Arc::clone(&dispatcher);
+        // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
+        // let this_progress = Arc::clone(&current_progress);
+        let mut idle_threads = Arc::clone(&idle_threads);
+        let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
+        let mut addr = Arc::clone(&addr);
+        let mut count = Arc::clone(&count);
+        let mut LAT_C = Arc::clone(&LAT_C);
+        let mut LAT_A = Arc::clone(&LAT_A);
+        let mut LAT_B = Arc::clone(&LAT_B);
 
-    //         fun_name(&mut idle_threads, tid, &mut dispatcher, &mut progress, &mut addr, &mut LAT_C, &mut count, &mut LAT_A, &mut LAT_B);
-    //     // });
-    // } /* end of for(tid) */
+        let handle = thread::spawn(move || {
+            // should be par_iter_mut or similar things...
+            fun_name(
+                    &mut idle_threads,
+                    tid,
+                    &mut dispatcher,
+                    &mut current_progress,
+                    &mut addr,
+                    &mut LAT_C,
+                    &mut count,
+                    &mut LAT_A,
+                    &mut LAT_B,
+                );
+            // fun_name(&mut idle_threads, tid, &mut dispatcher, &mut progress, &mut addr, &mut LAT_C, &mut count, &mut LAT_A, &mut LAT_B);
+        });
+
+        handles.push(handle);
+    } /* end of for(tid) */
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
     idle_threads.lock().unwrap().fill(0);
 
     //update and clear the lists
