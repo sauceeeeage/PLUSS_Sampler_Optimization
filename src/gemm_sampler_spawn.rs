@@ -17,7 +17,6 @@ use std::time::Duration;
 use std::time::Instant;
 // use derivative::Derivative;
 // use rgsl::rng::Rng;
-use rayon::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::chunk::Chunk;
