@@ -188,7 +188,7 @@ fn sampler() {
     }
 
     unsafe {
-        max_iteration_count = count.lock().unwrap().iter().sum();
+        max_iteration_count = count.lock().unwrap().par_iter().sum();
         // println!("count: {:?}", count);
         // println!("max iteration traversed: {}", max_iteration_count);
     }
