@@ -445,11 +445,11 @@ pub(crate) fn main() {
     pluss_aet::pluss_aet();
     let end = start.elapsed();
     println!("Time elapsed in parallel is: {:?}", end);
-    utils::pluss_cri_noshare_print_histogram();
-    utils::pluss_cri_share_print_histogram();
-    utils::pluss_print_histogram();
-    utils::pluss_print_mrc();
-    unsafe {
-        println!("max iteration traversed: {}", max_iteration_count);
-    }
+    // utils::pluss_cri_noshare_print_histogram();
+    // utils::pluss_cri_share_print_histogram();
+    // utils::pluss_print_histogram();
+    // utils::pluss_print_mrc();
+    // unsafe {
+    //     println!("max iteration traversed: {}", max_iteration_count);
+    // }
 }
