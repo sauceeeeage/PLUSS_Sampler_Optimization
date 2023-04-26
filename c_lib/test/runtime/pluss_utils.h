@@ -1066,7 +1066,7 @@ inline void _pluss_cri_racetrack(int thread_cnt=THREAD_NUM)
 			// printf("share parameter n = %f\n", n);
 			if (thread_cnt > 1) {
 
-				_pluss_cri_nbd(1.0/THREAD_NUM, reuse_entry.first, dist);
+				_pluss_cri_nbd(thread_cnt, reuse_entry.first, dist);
 				for (auto dist_entry: dist) {
 					long ri_to_distribute = dist_entry.first;
 					double cnt_to_distribute = reuse_entry.second * dist_entry.second;

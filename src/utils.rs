@@ -44,7 +44,7 @@ pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse
 
 pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f64, in_log_format: Option<bool>) {
     let in_log_format = in_log_format.unwrap_or(false);
-    let mut local_reuse = reuse; //FIXME: this may be wrong, it's in pluss_utils.h line 680
+    let mut local_reuse = reuse;
     let mut histogram = _NoSharePRI.lock().unwrap();
     if local_reuse > 0 && in_log_format {
         local_reuse = _polybench_to_highest_power_of_two(local_reuse);

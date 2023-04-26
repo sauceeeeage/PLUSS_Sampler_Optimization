@@ -25,7 +25,7 @@ use crate::chunk_dispatcher::chunk_dispatcher;
 use crate::iteration::Iteration;
 use crate::progress::{Progress, self};
 use crate::{pluss_aet, utils};
-use tracing::{debug, error, info, instrument, span, trace, warn, Level, dispatcher};
+// use tracing::{debug, error, info, instrument, span, trace, warn, Level, dispatcher};
 
 // #[path = "utils.rs"]
 // mod utils;
@@ -444,7 +444,7 @@ pub(crate) fn main() {
     utils::pluss_cri_distribute(THREAD_NUM as i32);
     pluss_aet::pluss_aet();
     let end = start.elapsed();
-    println!("Time elapsed in parallel is: {:?}", end);
+    println!("Time elapsed in rayon parallel is: {:?}", end);
     // utils::pluss_cri_noshare_print_histogram();
     // utils::pluss_cri_share_print_histogram();
     // utils::pluss_print_histogram();

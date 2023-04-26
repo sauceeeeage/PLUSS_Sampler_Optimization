@@ -1,11 +1,3 @@
-// // For parallel OPT
-// #include <shared_mutex>
-// #include <atomic>
-// // For CRI
-// #include <gsl/gsl_rng.h>
-// #include <gsl/gsl_randist.h>
-// #include <gsl/gsl_cdf.h> // cdf of gaussian distribution
-
 use std::collections::HashMap;
 use std::thread;
 use std::sync::mpsc::channel;

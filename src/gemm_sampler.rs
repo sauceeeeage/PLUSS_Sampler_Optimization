@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::iter::Map;
 use std::process::id;
-use std::ptr::null_mut;
+// use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 // use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -26,7 +26,7 @@ use crate::progress::Progress;
 use crate::iteration::Iteration;
 use crate::chunk_dispatcher::chunk_dispatcher;
 use crate::{pluss_aet, utils};
-use tracing::{info, error, warn, debug, trace, instrument, span, Level};
+// use tracing::{info, error, warn, debug, trace, instrument, span, Level};
 
 // #[path = "utils.rs"]
 // mod utils;
@@ -313,13 +313,13 @@ pub(crate) fn main(){
     utils::pluss_cri_distribute(THREAD_NUM as i32);
     pluss_aet::pluss_aet();
     let end = start.elapsed();
-    println!("Time elapsed in parallel is: {:?}", end);
-    utils::pluss_cri_noshare_print_histogram();
-    utils::pluss_cri_share_print_histogram();
-    utils::pluss_print_histogram();
-    utils::pluss_print_mrc();
-    unsafe {
-        println!("max iteration traversed: {}", max_iteration_count);
-    }
+    println!("Time elapsed in sequential is: {:?}", end);
+    // utils::pluss_cri_noshare_print_histogram();
+    // utils::pluss_cri_share_print_histogram();
+    // utils::pluss_print_histogram();
+    // utils::pluss_print_mrc();
+    // unsafe {
+    //     println!("max iteration traversed: {}", max_iteration_count);
+    // }
 }
 

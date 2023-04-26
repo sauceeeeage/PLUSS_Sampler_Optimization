@@ -9,13 +9,13 @@
 
 #ifndef THREAD_NUM
 #define THREAD_NUM	4
-#endif
+#endif	
 
 using namespace std;
 
 #ifdef __cplusplus
+extern "C" {
 #endif
-
 #if 0
 typedef pair<int, int> Chunk;
 
@@ -507,11 +507,10 @@ void pluss_AET();
 void pluss_print_histogram();
 void pluss_print_mrc();
 #endif
-extern "C" {
+
 void pluss_timer_start();
 void pluss_timer_stop();
 void pluss_timer_print();
-}
 # ifndef PLUSS_CYCLE_ACCURATE_TIMER
 double pluss_timer_return();
 # else
@@ -520,6 +519,7 @@ unsigned long long int pluss_timer_return();
 // void pluss_terminate();
 
 #ifdef __cplusplus
+}
 #endif
 
 #endif // end of PLUSS_H
