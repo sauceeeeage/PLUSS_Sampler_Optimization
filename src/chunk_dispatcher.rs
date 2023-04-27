@@ -16,16 +16,6 @@ const THREAD_NUM: usize = 4; ///because the thread_num in gemm is 4
 // #[derive(Derivative)]
 // #[derivative(Debug, Default)]
 pub(crate) struct chunk_dispatcher{
-    // int lb = 0;
-    // int ub = 0;
-    // int chunk_size = 0;
-    // int trip = 0;
-    // int start = 0;
-    // int last = 0;
-    // int step = 1;
-    // int avail_chunk = 0;
-    // array<int, THREAD_NUM> per_thread_start_point; // use for static sheduling only
-    // TODO: maybe it's not i32 but i64
     lb: i32,
     ub: i32,
     chunk_size: i32,
@@ -77,21 +67,6 @@ trait chunk_dispatcher_trait {
 impl chunk_dispatcher {
 
     fn init(&mut self) {
-        // void init() {
-        // // the range of the parallel loop will in [start, last]
-        // this->avail_chunk = (this->trip % this->chunk_size) == 0 ? this->trip / this->chunk_size : this->trip / this->chunk_size + 1;
-        //// the lb and ub of the first chunk (dynamic scheduling only)
-        // 		if (this->step > 0) {
-        // 			this->lb = this->start;
-        // 			this->ub = (this->lb + (this->chunk_size-1)*this->step) <= this->last ? (this->lb + (this->chunk_size-1)*this->step) : this->last;
-        // 		} else {
-        // 			this->ub = this->start;
-        // 			this->lb = (this->ub + (this->chunk_size-1)*this->step) >= this->trip ? (this->ub + (this->chunk_size-1)*this->step) : this->last;
-        // 		}
-        // // assign the start chunk of each thread (static scheduling only)
-        // for (int t = 0; t < THREAD_NUM; t++) {
-        // this->per_thread_start_point[t] = (this->start + (this->chunk_size*this->step) * t);
-        // }
         if self.chunk_size != 0 {
             self.avail_chunk = if self.trip % self.chunk_size == 0 {
                 self.trip / self.chunk_size
@@ -124,17 +99,6 @@ impl chunk_dispatcher {
     pub fn new(&mut self, chunk_size: i32, trip: i32, start_point: i32, step: i32) {
         // default para for start_point is 0 and step is 1
 
-        // ChunkDispatcher(int chunk_size, int trip, int start_point=0, int step=1) {
-        // it is possible that the chunk_size is greater than the trip count
-        // this->chunk_size = chunk_size;
-        // this->trip = trip;
-        // this->start = start_point;
-        // this->step = step;
-        // this->last = start_point + (trip - 1) * step; // the last iteration
-        //
-        // init();
-        // }
-
         chunk_dispatcher {
             lb: 0,
             ub: 0,
@@ -151,27 +115,6 @@ impl chunk_dispatcher {
 
     pub fn new_with_para(&mut self, chunk_size: i32, trip: i32, start_point: i32, step: i32) {
         // // it is possible that the chunk_size is greater than the trip count
-        // this->chunk_size = chunk_size;
-        // this->trip = trip;
-        // this->start = start_point;
-        // this->step = step;
-        // this->last = start_point + (trip - 1) * step; // the last iteration
-        // // the range of the parallel loop will in [start, last]
-        // this->avail_chunk = (trip % chunk_size) == 0 ? trip / chunk_size : trip / chunk_size + 1;
-        //
-        // // the lb and ub of the first chunk (dynamic scheduling only)
-        // if (step > 0) {
-        //     this->lb = start_point;
-        //     this->ub = (this->lb + (chunk_size-1)*step) <= this->last ? (this->lb + (chunk_size-1)*step) : this->last;
-        // } else {
-        //     this->ub = start_point;
-        //     this->lb = (this->ub + (chunk_size-1)*step) >= this->trip ? (this->ub + (chunk_size-1)*step) : this->last;
-        // }
-        //
-        // // assign the start chunk of each thread (static scheduling only)
-        // for (int t = 0; t < THREAD_NUM; t++) {
-        //     this->per_thread_start_point.push_back(start_point + (chunk_size*step) * t);
-        // }
         self.chunk_size = chunk_size;
         self.trip = trip;
         self.start = start_point;
@@ -220,23 +163,6 @@ impl chunk_dispatcher {
 
     pub fn has_next_chunk(&self, is_static: bool) -> bool {
         // for dynamic, the next chunk is available if there avail_chunk is not 0
-        // bool hasNextChunk(bool isStatic) {
-        //     bool ret = false;
-        //     if (isStatic) {
-        //         // static
-        //         // hasNextChunk return false if hasNextStaticChunk(tid) return false for all tid
-        //         for (int tid = 0; tid < THREAD_NUM; tid++) {
-        //             ret |= hasNextStaticChunk(tid);
-        //         }
-        //         return ret;
-        //     }
-        //     // dynamic
-        //     // the lb of the next chunk exceed the parallel loop bound
-        //     if (step > 0)
-        //     return this->lb <= this->last;
-        //     else
-        //     return this->ub >= this->last;
-        // }
         return if is_static {
             for tid in 0..THREAD_NUM {
                 if self.has_next_static_chunk(tid as u32) {
@@ -256,12 +182,6 @@ impl chunk_dispatcher {
     pub fn has_next_static_chunk(&self, tid: u32) -> bool {
         // for static, the next chunk is available for a given tid if its next
         // available chunk still in the loop range
-        // bool hasNextStaticChunk(unsigned tid) {
-        //     if (step > 0)
-        //     return this->per_thread_start_point[tid] <= this->last;
-        //     else
-        //     return this->per_thread_start_point[tid] >= this->last;
-        // }
         if self.step > 0 {
             self.per_thread_start_point[tid as usize] <= self.last
         } else {
@@ -271,19 +191,6 @@ impl chunk_dispatcher {
 
     pub fn get_next_static_chunk(&mut self, tid: u32) -> Chunk {
         // for static
-        // Chunk getNextStaticChunk(unsigned tid) {
-        //     int retlb = 0, retub = 0;
-        //     if (step > 0) {
-        //         retlb = this->per_thread_start_point[tid];
-        //         retub = (retlb + (chunk_size-1)*step) < this->last ? (retlb + (chunk_size-1)*step) : this->last;
-        //     } else {
-        //         retub = this->per_thread_start_point[tid];
-        //         retlb = (retub + (chunk_size-1)*step) > this->last ? (retub + (chunk_size-1)*step) : this->last;
-        //     }
-        //     Chunk curr = make_pair(retlb, retub);
-        //     this->per_thread_start_point[tid] += (chunk_size*THREAD_NUM)*step;
-        //     return curr;
-        // }
         let mut retlb: i32 = 0;
         let mut retub: i32 = 0;
         if self.step > 0 {

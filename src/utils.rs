@@ -18,17 +18,74 @@ lazy_static! {
     static ref _SharePRI: Arc<Mutex<[HashMap<i64, Histogram>; THREAD_NUM]>> = Default::default(); //FIXME: i changed the inner hashmap to i64, Histogram instead of i32, Histogram
 }
 
+pub(crate) fn pluss_aet() {
+    let mut p: HashMap<u64, f64> = HashMap::new();
+    let mut histogram: HashMap<i64, f64> = HashMap::new();
+    let mut total_num_rt = 0.0;
+    let mut max_rt: i64 = 0;
+
+    // let rihist_guard = RIHIST.lock().unwrap();
+    let rihist_guard = _RIHist.lock().unwrap();
+    for (k, v) in rihist_guard.iter() {
+        total_num_rt += *v;
+        histogram.insert(*k, *v);
+        if max_rt < *k {
+            max_rt = *k;
+        }
+    }
+
+    let mut accumulate_num_rt = 0.0;
+    if histogram.contains_key(&(-1)) {
+        accumulate_num_rt = *histogram.get(&(-1)).unwrap();
+    }
+
+    let mut sorted_keys: Vec<&i64> = histogram.keys().collect();
+    sorted_keys.sort();
+    // sorted_keys.reverse();
+    for k in sorted_keys {
+        let v = histogram.get(k).unwrap();
+        if *k == -1 {
+            break;
+        }
+        p.insert(*k as u64, accumulate_num_rt / total_num_rt);
+        accumulate_num_rt += v;
+    }
+
+    p.insert(0, 1.0);
+    let mut sum_p = 0.0;
+    let mut mrc_pred = -1.0;
+    let mut t: u64 = 0;
+    let mut prev_t: u64 = 0;
+    let cs = 2560 * 1024 / std::mem::size_of::<f64>();
+
+    for c in 0..=max_rt as u64 {
+        if c > cs as u64 {
+            break;
+        }
+        while sum_p < c as f64 && t <= max_rt as u64 {
+            if p.contains_key(&t) {
+                sum_p += p[&t];
+                prev_t = t;
+            } else {
+                sum_p += p[&prev_t];
+            }
+            t += 1;
+        }
+
+        if mrc_pred != -1.0 {
+            let mut mrc_guard = _MRC.lock().unwrap();
+            // let mut mrc_guard = &MRC;
+            mrc_guard.insert(c, p[&prev_t]);
+        } else if mrc_pred - p[&prev_t] < 0.0001 {
+            // let mut mrc_guard = &MRC;
+            let mut mrc_guard = _MRC.lock().unwrap();
+            mrc_guard.insert(c, p[&prev_t]);
+            mrc_pred = p[&prev_t];
+        }
+    }
+}
+
 pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse: i64, count: f64) {
-    // inline void pluss_cri_share_histogram_update(int tid, int share_ratio, long reuse, double count)
-    // {
-    //     // if (reuse > 0)
-    //     // 	reuse = _polybench_to_highest_power_of_two(reuse);
-    //     if (_SharePRI[tid].find(share_ratio) != _SharePRI[tid].end()) {
-    //         _pluss_histogram_update(_SharePRI[tid][share_ratio], reuse, count, false);
-    //     } else {
-    //         _SharePRI[tid][share_ratio][reuse] = count;
-    //     }
-    // }
     let share_ratio = share_ratio as i64;
     let mut local_share_pri = _SharePRI.lock().unwrap();
     if local_share_pri[tid as usize].contains_key(&share_ratio) {
@@ -43,7 +100,7 @@ pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse
 }
 
 pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f64, in_log_format: Option<bool>) {
-    let in_log_format = in_log_format.unwrap_or(false);
+    let in_log_format = in_log_format.unwrap_or(true);
     let mut local_reuse = reuse;
     let mut histogram = _NoSharePRI.lock().unwrap();
     if local_reuse > 0 && in_log_format {
@@ -133,7 +190,7 @@ pub(crate) fn pluss_print_mrc() {
         let (mut it2_first, mut it2_second) = it2.next().unwrap();
         loop {
             let mut it3 = it2.clone();
-            let (mut it3_first, mut it3_second) = it3.next().unwrap();
+            let (mut it3_first, mut it3_second) = it3.next().unwrap_or((&0, &0.));
             it3.next();
             if it3.clone().next().is_none() {
                 break;

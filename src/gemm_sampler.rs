@@ -1,11 +1,3 @@
-// #[link(name = "pluss")]
-// extern "C" {
-//     fn pluss_timer_start();
-//     fn pluss_timer_stop();
-//     fn pluss_timer_print();
-// }
-
-
 use std::collections::HashMap;
 use std::iter::Map;
 use std::process::id;
@@ -25,14 +17,9 @@ use crate::chunk::Chunk;
 use crate::progress::Progress;
 use crate::iteration::Iteration;
 use crate::chunk_dispatcher::chunk_dispatcher;
-use crate::{pluss_aet, utils};
+use crate::{utils};
 // use tracing::{info, error, warn, debug, trace, instrument, span, Level};
 
-// #[path = "utils.rs"]
-// mod utils;
-
-// #[path = "chunk_dispatcher.rs"]
-// mod chunk_dispatcher;
 /*
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
@@ -302,24 +289,27 @@ fn sampler() {
     }
     unsafe {
         max_iteration_count = count.iter().sum();
-        // println!("count: {:?}", count);
-        // println!("max iteration traversed: {}", max_iteration_count);
     }
 }
 
-pub(crate) fn main(){
+pub(crate) fn acc(){
     let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
-    pluss_aet::pluss_aet();
     let end = start.elapsed();
-    println!("Time elapsed in sequential is: {:?}", end);
-    // utils::pluss_cri_noshare_print_histogram();
-    // utils::pluss_cri_share_print_histogram();
-    // utils::pluss_print_histogram();
-    // utils::pluss_print_mrc();
-    // unsafe {
-    //     println!("max iteration traversed: {}", max_iteration_count);
-    // }
+    println!("RUST SEQ: {:?}", end);
+    utils::pluss_cri_noshare_print_histogram();
+    utils::pluss_cri_share_print_histogram();
+    utils::pluss_print_histogram();
+    unsafe {
+        println!("max iteration traversed: {}", max_iteration_count);
+    }
 }
 
+pub(crate) fn speed(){
+    let start = Instant::now();
+    sampler();
+    utils::pluss_cri_distribute(THREAD_NUM as i32);
+    let end = start.elapsed();
+    println!("RUST SEQ: {:?}", end);
+}

@@ -1,10 +1,3 @@
-// #[link(name = "pluss")]
-// extern "C" {
-//     fn pluss_timer_start();
-//     fn pluss_timer_stop();
-//     fn pluss_timer_print();
-// }
-
 use std::collections::HashMap;
 use std::iter::Map;
 use std::process::id;
@@ -23,14 +16,9 @@ use crate::chunk::Chunk;
 use crate::chunk_dispatcher::chunk_dispatcher;
 use crate::iteration::Iteration;
 use crate::progress::{Progress, self};
-use crate::{pluss_aet, utils};
+use crate::{utils};
 // use tracing::{debug, error, info, instrument, span, trace, warn, Level, dispatcher};
 
-// #[path = "utils.rs"]
-// mod utils;
-
-// #[path = "chunk_dispatcher.rs"]
-// mod chunk_dispatcher;
 /*
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
@@ -102,38 +90,6 @@ fn sampler() {
     }
     std::mem::drop(local_idle_threads);
 
-    // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
-
-   /*  (0..THREAD_NUM).into_par_iter().for_each(
-        // should be par_iter_mut or similar things...
-        |tid: usize| {
-            // println!("This is thread {}.", tid);
-            let mut idle_threads = Arc::clone(&idle_threads);
-            let mut dispatcher = Arc::clone(&dispatcher);
-            // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
-            // let this_progress = Arc::clone(&current_progress);
-            // let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
-            let mut current_progress: Arc<Mutex<Option<Progress>>> = Arc::clone(&progress[tid]);
-            let mut addr = Arc::clone(&addr);
-            let mut count = Arc::clone(&count);
-            let mut LAT_C = Arc::clone(&LAT_C);
-            let mut LAT_A = Arc::clone(&LAT_A);
-            let mut LAT_B = Arc::clone(&LAT_B);
-
-            fun_name(
-                &mut idle_threads,
-                tid,
-                &mut dispatcher,
-                &mut current_progress,
-                &mut addr,
-                &mut LAT_C,
-                &mut count,
-                &mut LAT_A,
-                &mut LAT_B,
-            );
-        }
-    ); */
-
     let mut handles = vec![];
     for tid in 0..THREAD_NUM {
         // println!("This is thread {}.xxxx", tid);
@@ -150,7 +106,7 @@ fn sampler() {
 
         let handle = thread::spawn(move || {
             // should be par_iter_mut or similar things...
-            fun_name(
+            spawn_sampler(
                     &mut idle_threads,
                     tid,
                     &mut dispatcher,
@@ -161,7 +117,6 @@ fn sampler() {
                     &mut LAT_A,
                     &mut LAT_B,
                 );
-            // fun_name(&mut idle_threads, tid, &mut dispatcher, &mut progress, &mut addr, &mut LAT_C, &mut count, &mut LAT_A, &mut LAT_B);
         });
 
         handles.push(handle);
@@ -193,7 +148,7 @@ fn sampler() {
     }
 }
 
-fn fun_name(
+fn spawn_sampler(
     idle_threads: &mut Arc<Mutex<[i32; THREAD_NUM]>>,
     tid: usize,
     dispatcher: &mut Arc<Mutex<chunk_dispatcher>>,
@@ -248,19 +203,13 @@ fn fun_name(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             );
-            // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
             if LAT_C[tid].contains_key(&(*addr)) {
-                // long reuse = [count][tid_to_run] - LAT_C[tid_to_run][addr];
                 let reuse: i64 = count[tid] - *LAT_C[tid].get(&(*addr)).unwrap();
                 // println!("reuse in LAT_C: {}", reuse);
-                // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
-            // LAT_C[tid_to_run][addr] = count[tid_to_run];
             LAT_C[tid].insert(*addr, count[tid]);
-            // count[tid_to_run]++;
             count[tid] += 1;
-            // println!("count[tid]: {}", count[tid]);
             current_progress
                 .as_mut()
                 .unwrap()
@@ -268,24 +217,18 @@ fn fun_name(
             continue;
         } /* end of check to C0 */
 
-        // if (progress[tid_to_run]->ref == "C1") {
-        //     addr = GetAddress_C1(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
         if current_progress.as_ref().unwrap().refs == "C1" {
             // println!("in the C1 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
             *addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             );
-            // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
             if LAT_C[tid].contains_key(&(*addr)) {
-                // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
                 let reuse: i64 = count[tid] - *LAT_C[tid].get(&(*addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
-            // LAT_C[tid_to_run][addr] = count[tid_to_run];
             LAT_C[tid].insert(*addr, count[tid]);
-            // count[tid_to_run]++;
             count[tid] += 1;
             // println!("count[tid]: {}", count[tid]);
             // CASE 2
@@ -437,18 +380,24 @@ fn fun_name(
     /* end of while(true) */
 }
 
-pub(crate) fn main() {
+pub(crate) fn acc() {
     let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
-    pluss_aet::pluss_aet();
     let end = start.elapsed();
-    println!("Time elapsed in normal Rust parallel is: {:?}", end);
-    // utils::pluss_cri_noshare_print_histogram();
-    // utils::pluss_cri_share_print_histogram();
-    // utils::pluss_print_histogram();
-    // utils::pluss_print_mrc();
-    // unsafe {
-    //     println!("max iteration traversed: {}", max_iteration_count);
-    // }
+    println!("RUST MAN PARA: {:?}", end);
+    utils::pluss_cri_noshare_print_histogram();
+    utils::pluss_cri_share_print_histogram();
+    utils::pluss_print_histogram();
+    unsafe {
+        println!("max iteration traversed: {}", max_iteration_count);
+    }
+}
+
+pub(crate) fn speed() {
+    let start = Instant::now();
+    sampler();
+    utils::pluss_cri_distribute(THREAD_NUM as i32);
+    let end = start.elapsed();
+    println!("RUST MAN PARA: {:?}", end);
 }

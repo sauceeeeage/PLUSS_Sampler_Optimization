@@ -24,11 +24,12 @@ clean:
 	rm $(BIN_DIR)/$(SEQ_TARGET)
 	rm $(SEQ_TARGET).o
 	rm ../../output.txt
+	rm runtime/*.o
 
-run: check
-#	$(BIN_DIR)/$(PARA_TARGET)
-#	$(BIN_DIR)/$(SEQ_TARGET)
-	for number in 1 2 3 ; do \
-		$(BIN_DIR)/$(PARA_TARGET) >> ../../output.txt ; \
-		$(BIN_DIR)/$(SEQ_TARGET) >> ../../output.txt ; \
-	done
+speed: check
+	$(BIN_DIR)/$(SEQ_TARGET) >> ../../output.txt speed
+	$(BIN_DIR)/$(PARA_TARGET) >> ../../output.txt speed
+
+acc: check
+	$(BIN_DIR)/$(PARA_TARGET) >> ../../output.txt acc
+	$(BIN_DIR)/$(SEQ_TARGET) >> ../../output.txt acc

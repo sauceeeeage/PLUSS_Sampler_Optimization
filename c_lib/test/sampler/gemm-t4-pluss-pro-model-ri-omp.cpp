@@ -331,19 +331,32 @@ void sampler() {
 #endif
     max_iteration_count = accumulate(count.begin(), count.end(), 0);
 }
-int main() {
-    pluss_timer_start();
-    sampler();
-    pluss_cri_distribute(THREAD_NUM);
-    pluss_AET();
-    pluss_timer_stop();
-    cout << "OPENMP C++: ";
-    pluss_timer_print();
-//    pluss_cri_noshare_print_histogram();
-//    pluss_cri_share_print_histogram();
-//    pluss_print_histogram();
-//    pluss_print_mrc();
-//    cout << "max iteration traversed" << endl;
-//    cout << max_iteration_count << endl;
+int main(int argc, char** argv) {
+    string method = argv[1];
+    if (method == "acc") {
+        pluss_timer_start();
+        sampler();
+        pluss_cri_distribute(THREAD_NUM);
+        pluss_timer_stop();
+        cout << "OPENMP C++: ";
+        pluss_timer_print();
+        pluss_cri_noshare_print_histogram();
+        pluss_cri_share_print_histogram();
+        pluss_print_histogram();
+        cout << "max iteration traversed" << endl;
+        cout << max_iteration_count << endl;
+        printf("\n");
+    } else if (method == "speed") {
+        for (int i = 0; i < 5; i++) {
+            pluss_timer_start();
+            sampler();
+            pluss_cri_distribute(THREAD_NUM);
+            pluss_timer_stop();
+            cout << "OPENMP C++: ";
+            pluss_timer_print();
+        }
+        printf("\n");
+    }
+
     return 0;
 }

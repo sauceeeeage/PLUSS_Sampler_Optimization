@@ -1,10 +1,3 @@
-// #[link(name = "pluss")]
-// extern "C" {
-//     fn pluss_timer_start();
-//     fn pluss_timer_stop();
-//     fn pluss_timer_print();
-// }
-
 use std::collections::HashMap;
 use std::iter::Map;
 use std::process::id;
@@ -24,14 +17,9 @@ use crate::chunk::Chunk;
 use crate::chunk_dispatcher::chunk_dispatcher;
 use crate::iteration::Iteration;
 use crate::progress::{Progress, self};
-use crate::{pluss_aet, utils};
+use crate::{utils};
 // use tracing::{debug, error, info, instrument, span, trace, warn, Level, dispatcher};
 
-// #[path = "utils.rs"]
-// mod utils;
-
-// #[path = "chunk_dispatcher.rs"]
-// mod chunk_dispatcher;
 /*
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
@@ -103,8 +91,6 @@ fn sampler() {
     }
     std::mem::drop(local_idle_threads);
 
-    // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
-
    (0..THREAD_NUM).into_par_iter().for_each(
         // should be par_iter_mut or similar things...
         |tid: usize| {
@@ -121,7 +107,7 @@ fn sampler() {
             let mut LAT_A = Arc::clone(&LAT_A);
             let mut LAT_B = Arc::clone(&LAT_B);
 
-            fun_name(
+            rayon_sampler(
                 &mut idle_threads,
                 tid,
                 &mut dispatcher,
@@ -134,44 +120,6 @@ fn sampler() {
             );
         }
     );
-
-   /*  let mut handles = vec![];
-    for tid in 0..THREAD_NUM {
-        // println!("This is thread {}.xxxx", tid);
-        let mut dispatcher = Arc::clone(&dispatcher);
-        // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
-        // let this_progress = Arc::clone(&current_progress);
-        let mut idle_threads = Arc::clone(&idle_threads);
-        let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
-        let mut addr = Arc::clone(&addr);
-        let mut count = Arc::clone(&count);
-        let mut LAT_C = Arc::clone(&LAT_C);
-        let mut LAT_A = Arc::clone(&LAT_A);
-        let mut LAT_B = Arc::clone(&LAT_B);
-
-        let handle = thread::spawn(move || {
-            // should be par_iter_mut or similar things...
-            fun_name(
-                    &mut idle_threads,
-                    tid,
-                    &mut dispatcher,
-                    &mut current_progress,
-                    &mut addr,
-                    &mut LAT_C,
-                    &mut count,
-                    &mut LAT_A,
-                    &mut LAT_B,
-                );
-            // fun_name(&mut idle_threads, tid, &mut dispatcher, &mut progress, &mut addr, &mut LAT_C, &mut count, &mut LAT_A, &mut LAT_B);
-        });
-
-        handles.push(handle);
-    } /* end of for(tid) */
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
- */
     idle_threads.lock().unwrap().fill(0);
 
     //update and clear the lists
@@ -194,7 +142,7 @@ fn sampler() {
     }
 }
 
-fn fun_name(
+fn rayon_sampler(
     idle_threads: &mut Arc<Mutex<[i32; THREAD_NUM]>>,
     tid: usize,
     dispatcher: &mut Arc<Mutex<chunk_dispatcher>>,
@@ -438,18 +386,24 @@ fn fun_name(
     /* end of while(true) */
 }
 
-pub(crate) fn main() {
+pub(crate) fn acc() {
     let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
-    pluss_aet::pluss_aet();
     let end = start.elapsed();
-    println!("Time elapsed in rayon parallel is: {:?}", end);
-    // utils::pluss_cri_noshare_print_histogram();
-    // utils::pluss_cri_share_print_histogram();
-    // utils::pluss_print_histogram();
-    // utils::pluss_print_mrc();
-    // unsafe {
-    //     println!("max iteration traversed: {}", max_iteration_count);
-    // }
+    println!("RUST RAYON: {:?}", end);
+    utils::pluss_cri_noshare_print_histogram();
+    utils::pluss_cri_share_print_histogram();
+    utils::pluss_print_histogram();
+    unsafe {
+        println!("max iteration traversed: {}", max_iteration_count);
+    }
+}
+
+pub(crate) fn speed() {
+    let start = Instant::now();
+    sampler();
+    utils::pluss_cri_distribute(THREAD_NUM as i32);
+    let end = start.elapsed();
+    println!("RUST RAYON: {:?}", end);
 }

@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
 
-# need to set RUSTFLAGS to include the path to the homebrew gsl library
-#RUSTFLAGS='-L /opt/homebrew/include'
+METHOD=$1
 
 cd c_lib/test
 make clean
+make "$METHOD"
 
 cd ../..
 
 cargo build --release --bin RUST_PLUSS
+./target/release/RUST_PLUSS "$METHOD" >> output.txt
 
-#export RUST_BACKTRACE=1
-#export RUST_LOG=info
-
-./target/release/RUST_PLUSS >> output.txt
-
-cd c_lib/test
-make run
