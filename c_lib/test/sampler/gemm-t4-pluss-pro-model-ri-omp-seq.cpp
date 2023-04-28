@@ -347,7 +347,7 @@ int main(int argc, char** argv) {
         cout << max_iteration_count << endl;
         printf("\n");
     } else if (method == "speed") {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             pluss_timer_start();
             sampler();
             pluss_cri_distribute(THREAD_NUM);

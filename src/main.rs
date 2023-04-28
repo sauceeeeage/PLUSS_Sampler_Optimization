@@ -21,15 +21,15 @@ fn main() {
         gemm_sampler::acc();
         println!();
     } else if method.eq_ignore_ascii_case("speed") {
-        for _ in 0..5{
+        for _ in 0..3{
             gemm_sampler_rayon::speed();
         }
         println!();
-        for _ in 0..5{
+        for _ in 0..3{
             gemm_sampler_spawn::speed();
         }
         println!();
-        for _ in 0..5{
+        for _ in 0..3{
             gemm_sampler::speed();
         }
         println!();
