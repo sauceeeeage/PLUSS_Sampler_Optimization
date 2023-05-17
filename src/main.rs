@@ -14,9 +14,10 @@ fn main() {
 
     let method = &args[1];
     if method.eq_ignore_ascii_case("acc") {
-        gemm_sampler_rayon::acc();
+        println!("Accuracy:");
+        // gemm_sampler_rayon::acc();
         println!();
-        gemm_sampler_spawn::acc();
+        // gemm_sampler_spawn::acc();
         println!();
         gemm_sampler::acc();
         println!();

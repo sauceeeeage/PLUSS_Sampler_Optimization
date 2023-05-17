@@ -3,6 +3,7 @@ use std::iter::Map;
 use std::process::id;
 // use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicI64, Ordering};
 // use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
@@ -24,12 +25,14 @@ use crate::{utils};
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
 
-const THREAD_NUM: usize = 4; ///because the thread_num in gemm is 4
+const THREAD_NUM: usize = 4;
+///because the thread_num in gemm is 4
 const CHUNK_SIZE: usize = 4;
 const DS: usize = 8;
 const CLS: usize = 64;
 
-static mut max_iteration_count: i64 = 0;
+// static mut max_iteration_count: i64 = 0;
+static max_iteration_count: AtomicI64 = AtomicI64::new(0);
 
 fn get_addr(idx0: i64, idx1: i64) -> u64 {
     ///don't know if to change the input para to i64, i32 or usize
@@ -76,7 +79,7 @@ fn sampler() {
     //Threads are scheduled using static scheduling
     //Threads are interleaved using uniform interleaving
     loop_cnt += 1;
-    dispatcher.new_with_para( CHUNK_SIZE as i32, 128, 0, 1);
+    dispatcher.new_with_para(CHUNK_SIZE as i32, 128, 0, 1);
     // dispatcher.print();
 
     for tid in 0..THREAD_NUM {
@@ -86,6 +89,7 @@ fn sampler() {
     // #pragma omp parallel for num_threads(THREAD_NUM) private(addr) TODO: !!!!! need to parallel this for loop
     for tid in 0..THREAD_NUM {
         loop {
+            // println!("tid: {}", tid);
             if idle_threads[tid] == 1 && dispatcher.has_next_chunk(true) {
                 let c: Chunk = dispatcher.get_next_static_chunk(tid as u32);
                 // println!("c.first: {}, c.second: {}", c.first(), c.second());
@@ -236,7 +240,7 @@ fn sampler() {
                 if LAT_C[tid].contains_key(&(addr)) {
                     let reuse: i64 = count[tid] - LAT_C[tid].get(&(addr)).unwrap();
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None); 
+                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
                 LAT_C[tid].insert(addr, count[tid]);
                 count[tid] += 1;
@@ -267,7 +271,7 @@ fn sampler() {
             if idle_threads[tid] == 0 {
                 idle_threads[tid] = 1;
             }
-            if idle_threads[tid] == 1 && !dispatcher.has_next_chunk(true){
+            if idle_threads[tid] == 1 && !dispatcher.has_next_chunk(true) {
                 // println!("breaking from the while(true) loop");
                 break;
             } /* end of break condition check */
@@ -287,12 +291,14 @@ fn sampler() {
             progress[i] = None;
         }
     }
-    unsafe {
-        max_iteration_count = count.iter().sum();
-    }
+    // unsafe {
+    //     max_iteration_count = count.iter().sum();
+    // }
+    let tmp_max_iteration_count = count.iter().sum();
+    max_iteration_count.store(tmp_max_iteration_count, Ordering::Relaxed);
 }
 
-pub(crate) fn acc(){
+pub(crate) fn acc() {
     let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);
@@ -301,12 +307,10 @@ pub(crate) fn acc(){
     utils::pluss_cri_noshare_print_histogram();
     utils::pluss_cri_share_print_histogram();
     utils::pluss_print_histogram();
-    unsafe {
-        println!("max iteration traversed: {}", max_iteration_count);
-    }
+    println!("max iteration traversed: {}", max_iteration_count.load(Ordering::Relaxed));
 }
 
-pub(crate) fn speed(){
+pub(crate) fn speed() {
     let start = Instant::now();
     sampler();
     utils::pluss_cri_distribute(THREAD_NUM as i32);

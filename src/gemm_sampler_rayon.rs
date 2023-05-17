@@ -12,6 +12,7 @@ use std::time::Instant;
 // use rgsl::rng::Rng;
 use rayon::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
+use lazy_static::lazy_static;
 
 use crate::chunk::Chunk;
 use crate::chunk_dispatcher::chunk_dispatcher;
