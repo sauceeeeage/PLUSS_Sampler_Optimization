@@ -101,22 +101,12 @@ fn sampler() {
             // let this_progress = Arc::clone(&current_progress);
             // let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
             let mut current_progress: Arc<Mutex<Option<Progress>>> = Arc::clone(&progress[tid]);
-            let mut addr = Arc::clone(&addr);
-            let mut count = Arc::clone(&count);
-            let mut LAT_C = Arc::clone(&LAT_C);
-            let mut LAT_A = Arc::clone(&LAT_A);
-            let mut LAT_B = Arc::clone(&LAT_B);
 
             rayon_sampler(
                 &mut idle_threads,
                 tid,
                 &mut dispatcher,
-                &mut current_progress,
-                &mut addr,
-                &mut LAT_C,
-                &mut count,
-                &mut LAT_A,
-                &mut LAT_B,
+                &mut current_progress
             );
         }
     );
@@ -146,21 +136,16 @@ fn rayon_sampler(
     idle_threads: &mut Arc<Mutex<[i32; THREAD_NUM]>>,
     tid: usize,
     dispatcher: &mut Arc<Mutex<chunk_dispatcher>>,
-    current_progress: &mut Arc<Mutex<Option<Progress>>>,
-    addr: &mut Arc<Mutex<u64>>,
-    LAT_C: &mut Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>>,
-    count: &mut Arc<Mutex<[i64; THREAD_NUM + 1]>>,
-    LAT_A: &mut Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>>,
-    LAT_B: &mut Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>>,
-) {
+    current_progress: &mut Arc<Mutex<Option<Progress>>>) {
     let mut idle_threads = idle_threads.lock().unwrap();
     let mut dispatcher = dispatcher.lock().unwrap();
     let mut current_progress = current_progress.lock().unwrap();
-    let mut addr = addr.lock().unwrap();
-    let mut LAT_C = LAT_C.lock().unwrap();
-    let mut count = count.lock().unwrap();
-    let mut LAT_A = LAT_A.lock().unwrap();
-    let mut LAT_B = LAT_B.lock().unwrap();
+
+    let mut addr: u64 = 0; //should be init as the C++ version does: {0}
+    let mut count: i64 = 0; //should be init as the C++ version does: {0}
+    let mut LAT_A: HashMap<u64, i64> = Default::default();
+    let mut LAT_B: HashMap<u64, i64> = Default::default();
+    let mut LAT_C: HashMap<u64, i64> = Default::default();
 
     loop {
         if idle_threads[tid] == 1 && dispatcher.has_next_chunk(true) {
@@ -182,7 +167,7 @@ fn rayon_sampler(
             }
             idle_threads[tid] = 0;
         } /* end of chunk availability check */
-        //UNIFORM INTERLEAVING
+
         if current_progress.is_none() || !current_progress.as_ref().unwrap().is_in_bound() {
             //FIXME: don't know if the second condition needs ! or not
             // println!("in the else if, and current_progress.is_none() is: {}", current_progress.is_none());
@@ -191,51 +176,43 @@ fn rayon_sampler(
             break;
         }
         // println!("tid: {}, current_progress.as_ref().unwrap().to_string: {}",tid, current_progress.as_ref().unwrap().to_string());
+
+        // CHECK REFERENCES IN LOOP J
         if current_progress.as_ref().unwrap().refs == "C0" {
             // println!("in the C0 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
-            *addr = get_addr(
+            addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             );
             // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
-            if LAT_C[tid].contains_key(&(*addr)) {
+            if LAT_C.contains_key(&(addr)) {
                 // long reuse = [count][tid_to_run] - LAT_C[tid_to_run][addr];
-                let reuse: i64 = count[tid] - *LAT_C[tid].get(&(*addr)).unwrap();
+                let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // println!("reuse in LAT_C: {}", reuse);
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             // LAT_C[tid_to_run][addr] = count[tid_to_run];
-            LAT_C[tid].insert(*addr, count[tid]);
+            LAT_C.insert(addr, count);
             // count[tid_to_run]++;
-            count[tid] += 1;
+            count += 1;
             // println!("count[tid]: {}", count[tid]);
-            current_progress
-                .as_mut()
-                .unwrap()
-                .increment_with_ref("C1".parse().unwrap());
-            continue;
-        } /* end of check to C0 */
-
-        // if (progress[tid_to_run]->ref == "C1") {
-        //     addr = GetAddress_C1(progress[tid_to_run]->iteration[0],progress[tid_to_run]->iteration[1]);
-        if current_progress.as_ref().unwrap().refs == "C1" {
             // println!("in the C1 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
-            *addr = get_addr(
+            addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             );
             // if (LAT_C[tid_to_run].find(addr) != LAT_C[tid_to_run].end()) {
-            if LAT_C[tid].contains_key(&(*addr)) {
+            if LAT_C.contains_key(&(addr)) {
                 // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
-                let reuse: i64 = count[tid] - *LAT_C[tid].get(&(*addr)).unwrap();
+                let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             // LAT_C[tid_to_run][addr] = count[tid_to_run];
-            LAT_C[tid].insert(*addr, count[tid]);
+            LAT_C.insert(addr, count);
             // count[tid_to_run]++;
-            count[tid] += 1;
+            count += 1;
             // println!("count[tid]: {}", count[tid]);
             // CASE 2
             current_progress.as_mut().unwrap().iteration.push(0);
@@ -245,35 +222,29 @@ fn rayon_sampler(
                 .increment_with_ref("A0".parse().unwrap());
             continue;
         } /* end of check to C1 */
+
+        // CHECK REFERENCES IN LOOP K
         if current_progress.as_ref().unwrap().refs == "A0" {
             // println!("in the A0 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
-            *addr = get_addr(
+            addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[2] as i64,
             );
-            if LAT_A[tid].contains_key(&(*addr)) {
-                let reuse: i64 = count[tid] - *LAT_A[tid].get(&(*addr)).unwrap();
+            if LAT_A.contains_key(&(addr)) {
+                let reuse: i64 = count - *LAT_A.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
-            LAT_A[tid].insert(*addr, count[tid]);
-            count[tid] += 1;
-            // println!("count[tid]: {}", count[tid]);
-            // CASE 2
-            current_progress
-                .as_mut()
-                .unwrap()
-                .increment_with_ref("B0".parse().unwrap());
-            continue;
-        } /* end of check to A0 */
-        if current_progress.as_ref().unwrap().refs == "B0" {
-            // println!("in the B0 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
-            *addr = get_addr(
+            LAT_A.insert(addr, count);
+            count += 1;
+
+
+            addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[2] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             ); // don't really understand why the iteration is 2 and 1 here and also in other places
-            if LAT_B[tid].contains_key(&(*addr)) {
-                let reuse: i64 = count[tid] - *LAT_B[tid].get(&(*addr)).unwrap();
+            if LAT_B.contains_key(&(addr)) {
+                let reuse: i64 = count - *LAT_B.get(&(addr)).unwrap();
                 /* Compare c2*/
                 /* With c2*/
                 /* With c1*/
@@ -297,48 +268,32 @@ fn rayon_sampler(
                     utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
             }
-            LAT_B[tid].insert(*addr, count[tid]);
-            count[tid] += 1;
-            // println!("count[tid]: {}", count[tid]);
-            current_progress
-                .as_mut()
-                .unwrap()
-                .increment_with_ref("C2".parse().unwrap());
-            continue;
-        } /* end of check to B0 */
-        if current_progress.as_ref().unwrap().refs == "C2" {
+            LAT_B.insert(addr, count);
+            count += 1;
             // println!("in the C2 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
-            *addr = get_addr(
+            addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             );
-            if LAT_C[tid].contains_key(&(*addr)) {
-                let reuse: i64 = count[tid] - *LAT_C[tid].get(&(*addr)).unwrap();
+            if LAT_C.contains_key(&(addr)) {
+                let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
-            LAT_C[tid].insert(*addr, count[tid]);
-            count[tid] += 1;
-            // println!("count[tid]: {}", count[tid]);
-            current_progress
-                .as_mut()
-                .unwrap()
-                .increment_with_ref("C3".parse().unwrap());
-            continue;
-        } /* end of check to C2 */
-        if current_progress.as_ref().unwrap().refs == "C3" {
+            LAT_C.insert(addr, count);
+            count += 1;
             // println!("in the C3 if, and current_progress.as_ref().unwrap().refs is: {}", current_progress.as_ref().unwrap().refs);
-            *addr = get_addr(
+            addr = get_addr(
                 current_progress.as_ref().unwrap().iteration[0] as i64,
                 current_progress.as_ref().unwrap().iteration[1] as i64,
             );
-            if LAT_C[tid].contains_key(&(*addr)) {
-                let reuse: i64 = count[tid] - *LAT_C[tid].get(&(*addr)).unwrap();
+            if LAT_C.contains_key(&(addr)) {
+                let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
                 utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
-            LAT_C[tid].insert(*addr, count[tid]);
-            count[tid] += 1;
+            LAT_C.insert(addr, count);
+            count += 1;
             if (current_progress.as_ref().unwrap().iteration[2] + 1) < 128 {
                 // println!("going to A0 from C3, CASE 3");
                 current_progress.as_mut().unwrap().iteration[2] =
@@ -403,7 +358,7 @@ pub(crate) fn acc() {
 pub(crate) fn speed() {
     let start = Instant::now();
     sampler();
-    utils::pluss_cri_distribute(THREAD_NUM as i32);
+    // utils::pluss_cri_distribute(THREAD_NUM as i32);
     let end = start.elapsed();
     println!("RUST RAYON: {:?}", end);
 }
