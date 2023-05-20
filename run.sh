@@ -8,6 +8,6 @@ make "$METHOD"
 
 cd ../..
 
-cargo build --release --bin RUST_PLUSS
-./target/release/RUST_PLUSS "$METHOD" >> output.txt
+cargo build --release --bin RUST_SAMPLER
+./target/release/RUST_SAMPLER "$METHOD" >> output.txt
 

@@ -3,7 +3,7 @@ use std::iter::Map;
 use std::process::id;
 // use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
-// use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -29,7 +29,8 @@ const CHUNK_SIZE: usize = 4;
 const DS: usize = 8;
 const CLS: usize = 64;
 
-static mut max_iteration_count: i64 = 0;
+// static mut max_iteration_count: i64 = 0;
+static max_iteration_count: AtomicI64 = AtomicI64::new(0);
 
 fn get_addr(idx0: i64, idx1: i64) -> u64 {
     ///don't know if to change the input para to i64, i32 or usize
@@ -287,9 +288,10 @@ fn sampler() {
             progress[i] = None;
         }
     }
-    unsafe {
-        max_iteration_count = count.iter().sum();
-    }
+    // unsafe {
+    //     max_iteration_count = count.iter().sum();
+    // }
+    max_iteration_count.store(count.iter().sum(), Ordering::Relaxed);
 }
 
 pub(crate) fn acc(){
@@ -301,9 +303,10 @@ pub(crate) fn acc(){
     utils::pluss_cri_noshare_print_histogram();
     utils::pluss_cri_share_print_histogram();
     utils::pluss_print_histogram();
-    unsafe {
-        println!("max iteration traversed: {}", max_iteration_count);
-    }
+    // unsafe {
+    //     println!("max iteration traversed: {}", max_iteration_count);
+    // }
+    println!("max iteration traversed: {}", max_iteration_count.load(Ordering::Relaxed));
 }
 
 pub(crate) fn speed(){

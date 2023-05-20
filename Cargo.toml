@@ -11,3 +11,11 @@ repository = "https://github.com/sauceeeeage/PLUSS_Sampler_Optimization.git"
 lazy_static = "1.4"
 rayon = "1.7.0"
 statrs = "0.16.0"
+
+[[bin]]
+name = "RUST_SAMPLER"
+path = "src/main.rs"
+
+[[bin]]
+name = "RUST_PROFILER"
+path = "src/gemm_profiler.rs"
