@@ -12,12 +12,14 @@ use std::time::Instant;
 // use rgsl::rng::Rng;
 use rayon::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicI64, Ordering};
 
 use crate::chunk::Chunk;
 use crate::chunk_dispatcher::chunk_dispatcher;
-use crate::iteration::Iteration;
+// use crate::iteration::Iteration;
 use crate::progress::{Progress, self};
-use crate::{utils};
+// use crate::{utils};
+use crate::unsafe_utils;
 // use tracing::{debug, error, info, instrument, span, trace, warn, Level, dispatcher};
 
 /*
@@ -30,7 +32,8 @@ const CHUNK_SIZE: usize = 4;
 const DS: usize = 8;
 const CLS: usize = 64;
 
-static mut max_iteration_count: i64 = 0;
+// static mut max_iteration_count: i64 = 0;
+static max_iteration_count: AtomicI64 = AtomicI64::new(0);
 
 fn get_addr(idx0: i64, idx1: i64) -> u64 {
     ///don't know if to change the input para to i64, i32 or usize
@@ -49,7 +52,7 @@ fn distance_to(x: u64, y: u64) -> u64 {
 fn update_and_clear_array(array: &mut Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>>) {
     let mut array = array.lock().unwrap();
     for i in 0..array.len() {
-        utils::pluss_cri_noshare_histogram_update(i, -1, array[i].len() as f64, None);
+        unsafe_utils::pluss_cri_noshare_histogram_update(i, -1, array[i].len() as f64, None);
         array[i].clear();
     }
 }
@@ -125,11 +128,12 @@ fn sampler() {
         }
     }
 
-    unsafe {
-        max_iteration_count = count.lock().unwrap().par_iter().sum();
-        // println!("count: {:?}", count);
-        // println!("max iteration traversed: {}", max_iteration_count);
-    }
+    // unsafe {
+    //     max_iteration_count = count.lock().unwrap().par_iter().sum();
+    //     // println!("count: {:?}", count);
+    //     // println!("max iteration traversed: {}", max_iteration_count);
+    // }
+    max_iteration_count.store(count.lock().unwrap().par_iter().sum(), Ordering::Relaxed);
 }
 
 fn rayon_sampler(
@@ -190,7 +194,7 @@ fn rayon_sampler(
                 let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // println!("reuse in LAT_C: {}", reuse);
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
+                unsafe_utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             // LAT_C[tid_to_run][addr] = count[tid_to_run];
             LAT_C.insert(addr, count);
@@ -207,7 +211,7 @@ fn rayon_sampler(
                 // long reuse = count[tid_to_run] - LAT_C[tid_to_run][addr];
                 let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
+                unsafe_utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             // LAT_C[tid_to_run][addr] = count[tid_to_run];
             LAT_C.insert(addr, count);
@@ -233,7 +237,7 @@ fn rayon_sampler(
             if LAT_A.contains_key(&(addr)) {
                 let reuse: i64 = count - *LAT_A.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
+                unsafe_utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             LAT_A.insert(addr, count);
             count += 1;
@@ -257,7 +261,7 @@ fn rayon_sampler(
                 if distance_to(reuse as u64, 0) > distance_to(reuse as u64, 16513) {
                     //don't really understand why 16513 is used here
                     // pluss_cri_share_histogram_update(tid_to_run,THREAD_NUM-1,reuse,1);
-                    utils::pluss_cri_share_histogram_update(
+                    unsafe_utils::pluss_cri_share_histogram_update(
                         tid as i32,
                         (THREAD_NUM - 1) as i32,
                         reuse,
@@ -265,7 +269,7 @@ fn rayon_sampler(
                     );
                 } else {
                     // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                    utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
+                    unsafe_utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
                 }
             }
             LAT_B.insert(addr, count);
@@ -278,7 +282,7 @@ fn rayon_sampler(
             if LAT_C.contains_key(&(addr)) {
                 let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
+                unsafe_utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             LAT_C.insert(addr, count);
             count += 1;
@@ -290,7 +294,7 @@ fn rayon_sampler(
             if LAT_C.contains_key(&(addr)) {
                 let reuse: i64 = count - *LAT_C.get(&(addr)).unwrap();
                 // pluss_cri_noshare_histogram_update(tid_to_run,reuse,1);
-                utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
+                unsafe_utils::pluss_cri_noshare_histogram_update(tid, reuse, 1 as f64, None);
             }
             LAT_C.insert(addr, count);
             count += 1;
@@ -344,21 +348,22 @@ fn rayon_sampler(
 pub(crate) fn acc() {
     let start = Instant::now();
     sampler();
-    utils::pluss_cri_distribute(THREAD_NUM as i32);
+    unsafe_utils::pluss_cri_distribute(THREAD_NUM as i32);
     let end = start.elapsed();
     println!("RUST RAYON: {:?}", end);
-    utils::pluss_cri_noshare_print_histogram();
-    utils::pluss_cri_share_print_histogram();
-    utils::pluss_print_histogram();
-    unsafe {
-        println!("max iteration traversed: {}", max_iteration_count);
-    }
+    unsafe_utils::pluss_cri_noshare_print_histogram();
+    unsafe_utils::pluss_cri_share_print_histogram();
+    unsafe_utils::pluss_print_histogram();
+    // unsafe {
+    //     println!("max iteration traversed: {}", max_iteration_count);
+    // }
+    println!("max iteration traversed: {}", max_iteration_count.load(Ordering::Relaxed));
 }
 
 pub(crate) fn speed() {
     let start = Instant::now();
     sampler();
-    // utils::pluss_cri_distribute(THREAD_NUM as i32);
+    // unsafe_utils::pluss_cri_distribute(THREAD_NUM as i32);
     let end = start.elapsed();
     println!("RUST RAYON: {:?}", end);
 }

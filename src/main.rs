@@ -8,6 +8,7 @@ mod gemm_sampler_rayon;
 mod gemm_sampler_spawn;
 mod chunk;
 mod chunk_dispatcher;
+mod unsafe_utils;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

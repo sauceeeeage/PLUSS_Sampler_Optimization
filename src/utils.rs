@@ -11,11 +11,11 @@ const THREAD_NUM: usize = 4;
 const POLYBENCH_CACHE_SIZE_KB: usize = 2560;
 
 lazy_static! {
-    pub static ref _NoSharePRI: Arc<Mutex<[Histogram; THREAD_NUM]>> = Default::default();
+    pub static ref _NoSharePRI: [Mutex<Histogram>; THREAD_NUM] = Default::default();
     static ref _RIHist: Mutex<Histogram> = Mutex::new(Histogram::new());
     static ref _MRC: Mutex<HashMap<u64, f64>> = Mutex::new(HashMap::new());
     // static ref _NoSharePRI: Vec<Histogram> = vec![Histogram::new(); THREAD_NUM];
-    static ref _SharePRI: Arc<Mutex<[HashMap<i64, Histogram>; THREAD_NUM]>> = Default::default(); //FIXME: i changed the inner hashmap to i64, Histogram instead of i32, Histogram
+    static ref _SharePRI: [Mutex<HashMap<i64, Histogram>>; THREAD_NUM] = Default::default(); //FIXME: i changed the inner hashmap to i64, Histogram instead of i32, Histogram
 }
 
 pub(crate) fn pluss_aet() {
@@ -87,31 +87,31 @@ pub(crate) fn pluss_aet() {
 
 pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse: i64, count: f64) {
     let share_ratio = share_ratio as i64;
-    let mut local_share_pri = _SharePRI.lock().unwrap();
-    if local_share_pri[tid as usize].contains_key(&share_ratio) {
-        let mut histogram = local_share_pri[tid as usize].get(&share_ratio).unwrap().clone();
+    let mut local_share_pri = _SharePRI[tid as usize].lock().unwrap();
+    if local_share_pri.contains_key(&share_ratio) {
+        let mut histogram = local_share_pri.get(&share_ratio).unwrap().clone();
         _pluss_histogram_update(&mut histogram, reuse, count, Some(false));
-        local_share_pri[tid as usize].insert(share_ratio, histogram);
+        local_share_pri.insert(share_ratio, histogram);
     } else {
         let mut histogram = HashMap::new();
         histogram.insert(reuse, count);
-        local_share_pri[tid as usize].insert(share_ratio, histogram);
+        local_share_pri.insert(share_ratio, histogram);
     }
 }
 
 pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f64, in_log_format: Option<bool>) {
     let in_log_format = in_log_format.unwrap_or(true);
     let mut local_reuse = reuse;
-    let mut histogram = _NoSharePRI.lock().unwrap();
+    let mut histogram = _NoSharePRI[tid as usize].lock().unwrap();
     if local_reuse > 0 && in_log_format {
         local_reuse = _polybench_to_highest_power_of_two(local_reuse);
     }
-    if histogram[tid].contains_key(&local_reuse) {
-        let update = histogram[tid].get(&local_reuse).unwrap() + cnt;
-        histogram[tid].insert(local_reuse, update);
+    if histogram.contains_key(&local_reuse) {
+        let update = histogram.get(&local_reuse).unwrap() + cnt;
+        histogram.insert(local_reuse, update);
         // *histogram[tid].get_mut(&reuse).unwrap() += cnt; // this does the same thing as above
     } else {
-        histogram[tid].insert(local_reuse, cnt);
+        histogram.insert(local_reuse, cnt);
     }
     // println!("histogram: {:?}", histogram);
 }
@@ -154,8 +154,8 @@ pub(crate) fn _pluss_histogram_update(histogram: &mut Histogram, reuse: i64, cnt
 pub(crate) fn pluss_cri_noshare_print_histogram() {
     let mut noshare_rih_tmp = HashMap::new();
     for i in 0..THREAD_NUM {
-        let histogram = _NoSharePRI.lock().unwrap();
-        for (k, v) in &histogram[i] {
+        let histogram = _NoSharePRI[i].lock().unwrap();
+        for (k, v) in histogram.iter() {
             _pluss_histogram_update(&mut noshare_rih_tmp, *k, *v, Some(false));
         }
     }
@@ -164,9 +164,9 @@ pub(crate) fn pluss_cri_noshare_print_histogram() {
 
 pub(crate) fn pluss_cri_share_print_histogram() {
     let mut share_rih_tmp = HashMap::new();
-    let local_share_pri = _SharePRI.lock().unwrap();
     for i in 0..THREAD_NUM {
-        for (_, v) in &local_share_pri[i] {
+        let local_share_pri = _SharePRI[i].lock().unwrap();
+        for (_, v) in local_share_pri.iter() {
             for (kk, vv) in v {
                 _pluss_histogram_update(&mut share_rih_tmp, *kk, *vv, Some(false));
             }
@@ -238,15 +238,15 @@ pub(crate) fn _pluss_cri_nbd(thread_cnt: i32, n: i64, dist: &mut Histogram){
 pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
     let mut thread_cnt = thread_cnt.unwrap_or(THREAD_NUM as i32);
     let mut merged_dist: HashMap<i64, Histogram> = Default::default(); //FIXME: i also changed this i32 to i64 as well
-    let mut local_share_pri = _SharePRI.lock().unwrap();
-    for hash in local_share_pri.iter(){
-        for (k, v) in hash{ // share entry
+    for i in 0..thread_cnt as usize {
+        let mut hash_of_hash = _SharePRI[i].lock().unwrap();
+        for (k, hash) in hash_of_hash.iter(){ // share entry
             if merged_dist.contains_key(k){
-                for (k1, v1) in v{ // reuse entry
+                for (k1, v1) in hash{ // reuse entry
                     *merged_dist.get_mut(k).unwrap().get_mut(k1).unwrap() += v1;
                 }
             }else{
-                for (k1, v1) in v{ // reuse entry
+                for (k1, v1) in hash{ // reuse entry
                     let mut tmp_hist = Histogram::new();
                     tmp_hist.insert(*k1, *v1);
                     merged_dist.insert(*k, tmp_hist);
@@ -308,9 +308,9 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
     let mut thread_cnt = thread_cnt.unwrap_or(THREAD_NUM as i32);
     let mut dist = Histogram::new();
     let mut merge_dist = Histogram::new();
-    let mut local_no_share_pri = _NoSharePRI.lock().unwrap();
-    for hist in local_no_share_pri.iter() {
-        for (k, v) in hist {
+    for i in 0..thread_cnt as usize {
+        let mut hist = _NoSharePRI[i].lock().unwrap();
+        for (k, v) in hist.iter() {
             if merge_dist.contains_key(k) {
                 // *merge_dist.get_mut(k).unwrap() += v;
                 let tmp = merge_dist.get(&k).unwrap() + v;// this is the same as the method above
