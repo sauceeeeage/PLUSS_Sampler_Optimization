@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex, Once};
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
 use lazy_static::lazy_static;
 use statrs::distribution::{Discrete, NegativeBinomial};
 
@@ -20,7 +21,7 @@ lazy_static! {
     static ref _SharePRI: [Mutex<HashMap<i64, Histogram>>; THREAD_NUM] = Default::default(); //FIXME: i changed the inner hashmap to i64, Histogram instead of i32, Histogram
 }
 /**thread local method start here */
-thread_local! {static _NoSharePRI: RefCell<[Histogram; THREAD_NUM]> = Default::default();} //FIXME: could change this to [RefCell<Histogram>; THREAD_NUM], but not sure how
+thread_local! {static _NoSharePRI: RefCell<Histogram> = Default::default();} //FIXME: could change this to [RefCell<Histogram>; THREAD_NUM], but not sure how
 // thread_local! {static _NoSharePRI: [RefCell<Histogram>; THREAD_NUM] = Default::default();}
 /**thread local method end here */
 
@@ -137,14 +138,22 @@ pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f6
         local_reuse = _polybench_to_highest_power_of_two(local_reuse);
     }
     _NoSharePRI.with(|histogram| {
-        if histogram.borrow().get(tid).unwrap().contains_key(&local_reuse) {
-            let update = histogram.borrow().get(tid).unwrap().get(&local_reuse).unwrap() + cnt;
-            *histogram.borrow_mut().get_mut(tid).unwrap().get_mut(&local_reuse).unwrap() = update;
-            // *histogram[tid].get_mut(&reuse).unwrap() += cnt; // this does the same thing as above
-        } else {
-            histogram.borrow_mut().get_mut(tid).unwrap()
-                .insert(local_reuse, cnt);
+        match histogram.borrow_mut().entry(local_reuse) {
+            Entry::Occupied(mut entry) => {
+                *entry.get_mut() += cnt;
+            },
+            Entry::Vacant(entry) => {
+                entry.insert(cnt);
+            }
         }
+        // if histogram.borrow().get(tid).unwrap().contains_key(&local_reuse) {
+        //     let update = histogram.borrow().get(tid).unwrap().get(&local_reuse).unwrap() + cnt;
+        //     *histogram.borrow_mut().get_mut(tid).unwrap().get_mut(&local_reuse).unwrap() = update;
+        //     // *histogram[tid].get_mut(&reuse).unwrap() += cnt; // this does the same thing as above
+        // } else {
+        //     histogram.borrow_mut().get_mut(tid).unwrap()
+        //         .insert(local_reuse, cnt);
+        // }
     });
 }
 
@@ -185,17 +194,17 @@ pub(crate) fn _pluss_histogram_update(histogram: &mut Histogram, reuse: i64, cnt
 
 pub(crate) fn pluss_cri_noshare_print_histogram() {
     let mut noshare_rih_tmp = HashMap::new();
-    for i in 0..THREAD_NUM {
-        // let histogram = _NoSharePRI[i].lock().unwrap();
-        _NoSharePRI.with(|histogram| {
-            for (k, v) in histogram.borrow().get(i).unwrap() {
-                _pluss_histogram_update(&mut noshare_rih_tmp, *k, *v, Some(false));
-            }
-        });
-        // for (k, v) in _NoSharePRI[i].iter() {
-        //     _pluss_histogram_update(&mut noshare_rih_tmp, *k, *v, Some(false));
-        // }
-    }
+    // for i in 0..THREAD_NUM {
+    //     // let histogram = _NoSharePRI[i].lock().unwrap();
+    //     _NoSharePRI.with(|histogram| {
+    //         for (k, v) in histogram.borrow().iter() {
+    //             _pluss_histogram_update(&mut noshare_rih_tmp, *k, *v, Some(false));
+    //         }
+    //     });
+    //     // for (k, v) in _NoSharePRI[i].iter() {
+    //     //     _pluss_histogram_update(&mut noshare_rih_tmp, *k, *v, Some(false));
+    //     // }
+    // }
     _pluss_histogram_print("Start to dump noshare private reuse time", &noshare_rih_tmp);
 }
 
@@ -348,7 +357,7 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
     for i in 0..thread_cnt as usize {
         // let mut hist = _NoSharePRI[i].lock().unwrap();
         _NoSharePRI.with(|histogram| {
-            for (k, v) in histogram.borrow().get(i).unwrap().iter() {
+            for (k, v) in histogram.borrow().iter() {
                 if dist.contains_key(k) {
                     *dist.get_mut(k).unwrap() += v;
                 } else {
@@ -390,6 +399,6 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
 } // end of void pluss_cri_noshare_distribute()
 
 pub(crate) fn pluss_cri_distribute(thread_cnt: i32) {
-    _pluss_cri_noshare_distribute(Some(thread_cnt));
+    // _pluss_cri_noshare_distribute(Some(thread_cnt));
     _pluss_cri_racetrack(Some(thread_cnt));
 }
