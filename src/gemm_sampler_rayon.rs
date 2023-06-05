@@ -13,6 +13,7 @@ use std::time::Instant;
 use rayon::prelude::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::atomic::{AtomicI64, Ordering};
+use lazy_static::lazy_static;
 
 use crate::chunk::Chunk;
 use crate::chunk_dispatcher::chunk_dispatcher;
@@ -35,6 +36,10 @@ const CLS: usize = 64;
 // static mut max_iteration_count: i64 = 0;
 static max_iteration_count: AtomicI64 = AtomicI64::new(0);
 
+// thread_local! {
+//     static count: i64 = 0;
+// }
+
 fn get_addr(idx0: i64, idx1: i64) -> u64 {
     ///don't know if to change the input para to i64, i32 or usize
     let addr_C0: i64 = (idx0 * 128) + (idx1 * 1);
@@ -49,12 +54,18 @@ fn distance_to(x: u64, y: u64) -> u64 {
     }
 }
 
-fn update_and_clear_array(array: &mut Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>>) {
-    let mut array = array.lock().unwrap();
-    for i in 0..array.len() {
-        unsafe_utils::pluss_cri_noshare_histogram_update(i, -1, array[i].len() as f64, None);
-        array[i].clear();
-    }
+// fn update_and_clear_array(array: &mut Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>>) {
+//     let mut array = array.lock().unwrap();
+//     for i in 0..array.len() {
+//         println!("array[{}].len(): {}", i, array[i].len());
+//         unsafe_utils::pluss_cri_noshare_histogram_update(i, -1, array[i].len() as f64, None);
+//         array[i].clear();
+//     }
+// }
+
+fn update_and_clear_array(hash: &mut HashMap<u64, i64>) {
+    unsafe_utils::pluss_cri_noshare_histogram_update(0, -1, hash.len() as f64, None);
+    hash.clear();
 }
 
 //Generate sampler without sampling
@@ -64,18 +75,18 @@ fn sampler() {
     // array<Progress *, THREAD_NUM> progress = { nullptr };
     let mut progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
     let mut idle_threads: Arc<Mutex<[i32; THREAD_NUM]>> = Default::default();
-    let mut subscripts: Vec<i32> = Default::default();
+    // let mut subscripts: Vec<i32> = Default::default();
     let mut dispatcher: Arc<Mutex<chunk_dispatcher>> =
         Arc::new(Mutex::new(chunk_dispatcher::new_with_default()));
-    let mut tid_to_run: i32 = 0;
-    let mut start_tid: i32 = 0;
-    let mut working_threads: i32 = THREAD_NUM as i32;
-    let mut addr: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
-    let mut loop_cnt: u64 = 0;
-    let mut count: Arc<Mutex<[i64; THREAD_NUM + 1]>> = Default::default(); //should be init as the C++ version does: {0}
-    let mut LAT_A: Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>> = Default::default();
-    let mut LAT_B: Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>> = Default::default();
-    let mut LAT_C: Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>> = Default::default();
+    // let mut tid_to_run: i32 = 0;
+    // let mut start_tid: i32 = 0;
+    // let mut working_threads: i32 = THREAD_NUM as i32;
+    // let mut addr: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+    let mut loop_cnt: u64 = 0; // FIXME: do we need this ?????
+    // let mut count: Arc<Mutex<[i64; THREAD_NUM + 1]>> = Default::default(); //should be init as the C++ version does: {0}
+    // let mut LAT_A: Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>> = Default::default();
+    // let mut LAT_B: Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>> = Default::default();
+    // let mut LAT_C: Arc<Mutex<[HashMap<u64, i64>; THREAD_NUM]>> = Default::default();
     //srand(time(NULL)); in c++, but seems like not used in the code
 
     //Generate parallel code for (c0,0,\<,128,(c0 + 1))
@@ -94,7 +105,7 @@ fn sampler() {
     }
     std::mem::drop(local_idle_threads);
 
-   (0..THREAD_NUM).into_par_iter().for_each(
+   (0..THREAD_NUM).into_par_iter().for_each( //FIXME: change this to chunk mut, maybe better
         // should be par_iter_mut or similar things...
         |tid: usize| {
             // println!("This is thread {}.", tid);
@@ -113,27 +124,24 @@ fn sampler() {
             );
         }
     );
-    idle_threads.lock().unwrap().fill(0);
-
-    //update and clear the lists
-    update_and_clear_array(&mut LAT_C);
-    update_and_clear_array(&mut LAT_A);
-    update_and_clear_array(&mut LAT_B);
-
-    //delete the progress array
-    for i in 0..progress.len() {
-        let mut progress_i = progress[i].lock().unwrap();
-        if progress_i.is_some() {
-            *progress_i = None;
-        }
-    }
+    // idle_threads.lock().unwrap().fill(0);
+    //
+    //
+    //
+    // //delete the progress array
+    // for i in 0..progress.len() {
+    //     let mut progress_i = progress[i].lock().unwrap();
+    //     if progress_i.is_some() {
+    //         *progress_i = None;
+    //     }
+    // }
 
     // unsafe {
     //     max_iteration_count = count.lock().unwrap().par_iter().sum();
     //     // println!("count: {:?}", count);
     //     // println!("max iteration traversed: {}", max_iteration_count);
     // }
-    max_iteration_count.store(count.lock().unwrap().par_iter().sum(), Ordering::Relaxed);
+    // max_iteration_count.store(total, Ordering::Relaxed);
 }
 
 fn rayon_sampler(
@@ -343,12 +351,23 @@ fn rayon_sampler(
         } /* end of break condition check */
     }
     /* end of while(true) */
+
+    // sync count to max_iteration_count
+    max_iteration_count.fetch_add(count, Ordering::Relaxed);
+
+    //update and clear the lists
+    update_and_clear_array(&mut LAT_C);
+    update_and_clear_array(&mut LAT_A);
+    update_and_clear_array(&mut LAT_B);
+
+    // sync the thread local hist together here
+    unsafe_utils::sync_pri();
 }
 
 pub(crate) fn acc() {
     let start = Instant::now();
     sampler();
-    unsafe_utils::pluss_cri_distribute(THREAD_NUM as i32);
+    // unsafe_utils::pluss_cri_distribute(THREAD_NUM as i32);
     let end = start.elapsed();
     println!("RUST RAYON: {:?}", end);
     unsafe_utils::pluss_cri_noshare_print_histogram();

@@ -88,6 +88,7 @@ pub(crate) fn pluss_aet() {
 pub(crate) fn pluss_cri_share_histogram_update(tid: i32, share_ratio: i32, reuse: i64, count: f64) {
     let share_ratio = share_ratio as i64;
     let mut local_share_pri = _SharePRI[tid as usize].lock().unwrap();
+    // println!("cri_share_pri: {:?}, tid: {}", local_share_pri, tid);
     if local_share_pri.contains_key(&share_ratio) {
         let mut histogram = local_share_pri.get(&share_ratio).unwrap().clone();
         _pluss_histogram_update(&mut histogram, reuse, count, Some(false));
@@ -103,6 +104,7 @@ pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f6
     let in_log_format = in_log_format.unwrap_or(true);
     let mut local_reuse = reuse;
     let mut histogram = _NoSharePRI[tid as usize].lock().unwrap();
+    // println!("cri_noshare_histogram: {:?}, tid: {}", histogram, tid);
     if local_reuse > 0 && in_log_format {
         local_reuse = _polybench_to_highest_power_of_two(local_reuse);
     }
@@ -166,6 +168,7 @@ pub(crate) fn pluss_cri_share_print_histogram() {
     let mut share_rih_tmp = HashMap::new();
     for i in 0..THREAD_NUM {
         let local_share_pri = _SharePRI[i].lock().unwrap();
+        // println!("share_pri: {:?}, i: {}", local_share_pri, i);
         for (_, v) in local_share_pri.iter() {
             for (kk, vv) in v {
                 _pluss_histogram_update(&mut share_rih_tmp, *kk, *vv, Some(false));
@@ -240,6 +243,7 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
     let mut merged_dist: HashMap<i64, Histogram> = Default::default(); //FIXME: i also changed this i32 to i64 as well
     for i in 0..thread_cnt as usize {
         let mut hash_of_hash = _SharePRI[i].lock().unwrap();
+        // println!("hash_of_hash: {:?}, i: {}", hash_of_hash, i);
         for (k, hash) in hash_of_hash.iter(){ // share entry
             if merged_dist.contains_key(k){
                 for (k1, v1) in hash{ // reuse entry
@@ -256,6 +260,7 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
             }
         }
     }
+    println!("merged_dist: {:?}", merged_dist);
     let mut prob: HashMap<i32, f64> = Default::default();
     let mut dist = Histogram::new();
     let mut i: i32 = 1;
@@ -289,12 +294,14 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>){
                         let new_ri = (2.0 as f64).powf(k3 as f64 - 1.0) as i64;
                         // println!("new_ri:{}, v3:{}, cnt_to_distribute:{}, v3 * cnt_to_dist: {}", new_ri, v3, cnt_to_distribute, v3 * cnt_to_distribute);
                         pluss_histogram_update(new_ri, v3 * cnt_to_distribute);
+                        // println!("ri_hist: {:?}", _RIHist.lock().unwrap());
                     }
                     prob.clear();
                 } // end of iterating dist
                 dist.clear();
             } else {
                 pluss_histogram_update(k1, v1);
+                // println!("ri_hist: {:?}", _RIHist.lock().unwrap());
             }
         } // end of iterating all reuse entries
     } // end of iterating all type of reuses
@@ -344,6 +351,24 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
 } // end of void pluss_cri_noshare_distribute()
 
 pub(crate) fn pluss_cri_distribute(thread_cnt: i32){
+    println!("before distribute");
+    println!("ri_hist: {:?}", _RIHist.lock().unwrap());
+    for i in 0..thread_cnt as usize {
+        println!("NoSharePRI: {:?}", _NoSharePRI[i].lock().unwrap());
+        println!("SharePRI: {:?}", _SharePRI[i].lock().unwrap());
+    }
     _pluss_cri_noshare_distribute(Some(thread_cnt));
+    println!("after distribute and before race track");
+    println!("ri_hist: {:?}", _RIHist.lock().unwrap());
+    for i in 0..thread_cnt as usize {
+        println!("NoSharePRI: {:?}", _NoSharePRI[i].lock().unwrap());
+        println!("SharePRI: {:?}", _SharePRI[i].lock().unwrap());
+    }
     _pluss_cri_racetrack(Some(thread_cnt));
+    println!("after race track");
+    println!("ri_hist: {:?}", _RIHist.lock().unwrap());
+    for i in 0..thread_cnt as usize {
+        println!("NoSharePRI: {:?}", _NoSharePRI[i].lock().unwrap());
+        println!("SharePRI: {:?}", _SharePRI[i].lock().unwrap());
+    }
 }
