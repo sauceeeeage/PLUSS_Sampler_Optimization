@@ -9,6 +9,7 @@ mod gemm_sampler_spawn;
 mod chunk;
 mod chunk_dispatcher;
 mod unsafe_utils;
+mod gemm_profiler;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -17,22 +18,23 @@ fn main() {
     if method.eq_ignore_ascii_case("acc") {
         gemm_sampler_rayon::acc();
         println!();
-        gemm_sampler_spawn::acc();
-        println!();
+        // gemm_sampler_spawn::acc();
+        // println!();
         gemm_sampler::acc();
         println!();
+        // gemm_profiler::acc(128, 128, 128, 4);
     } else if method.eq_ignore_ascii_case("speed") {
-        for _ in 0..3{
+        for _ in 0..5{
             gemm_sampler_rayon::speed();
         }
-        println!();
-        for _ in 0..3{
-            gemm_sampler_spawn::speed();
-        }
-        println!();
-        for _ in 0..3{
-            gemm_sampler::speed();
-        }
-        println!();
+        // println!();
+        // for _ in 0..3{
+        //     gemm_sampler_spawn::speed();
+        // }
+        // println!();
+        // for _ in 0..3{
+        //     gemm_sampler::speed();
+        // }
+        // println!();
     }
 }

@@ -9,3 +9,4 @@
 /c_lib/test/runtime/pluss_utils.o
 /c_lib/test/runtime/pluss.o
 output.txt
+flamegraph.svg
