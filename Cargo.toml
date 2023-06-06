@@ -12,6 +12,7 @@ lazy_static = "1.4"
 rayon = "1.7.0"
 statrs = "0.16.0"
 ahash = { version = "0.8.3", features = ["compile-time-rng", "std"] }
+mimalloc = "0.1"
 
 [profile.release]
 lto = true

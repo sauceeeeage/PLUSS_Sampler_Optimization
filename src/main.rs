@@ -11,6 +11,9 @@ mod chunk_dispatcher;
 mod unsafe_utils;
 mod gemm_profiler;
 
+#[global_allocator]
+static ALLOC : mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
