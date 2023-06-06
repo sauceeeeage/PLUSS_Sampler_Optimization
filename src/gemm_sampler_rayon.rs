@@ -28,6 +28,9 @@ use crate::unsafe_utils;
  * -DTHREAD_NUM=$(TNUM) -DCHUNK_SIZE=4 -DDS=8 -DCLS=64
  */
 
+// TODO: need to change string to i32 with a hashmap substitute
+// TODO: need to change the into_par_iter to chunk_par_iter
+
 const THREAD_NUM: usize = 4;
 ///because the thread_num in gemm is 4
 const CHUNK_SIZE: usize = 4;

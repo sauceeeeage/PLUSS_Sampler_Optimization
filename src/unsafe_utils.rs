@@ -224,18 +224,7 @@ pub(crate) fn pluss_cri_noshare_histogram_update(tid: usize, reuse: i64, cnt: f6
 
 #[inline(always)]
 pub(crate) fn _polybench_to_highest_power_of_two(mut x: i64) -> i64 {
-    // Check for the set bits
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    x |= x >> 32;
-    // Then we remove all but the top bit by xor'ing the
-    // string of 1's with that string of 1's
-    // shifted one to the left, and we end up with
-    // just the one top bit followed by 0's
-    x ^ (x >> 1)
+    (x as u64).next_power_of_two() as i64
 }
 
 #[inline]
