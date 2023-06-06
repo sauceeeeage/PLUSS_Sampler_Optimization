@@ -104,7 +104,28 @@ pub(crate) fn sync_pri() {
     sync_share_pri();
 }
 
-fn sync_share_pri() {}
+fn sync_share_pri() {
+    let mut local_merge_share_pri = _MergeSharePRI.lock().unwrap();
+    _SharePRI.with(|local_share_pri| {
+        if local_merge_share_pri.is_empty() {
+            local_merge_share_pri.extend(local_share_pri.borrow().deref().clone());
+        } else {
+            local_share_pri.borrow().iter().for_each(|(k, v)| {
+                match local_merge_share_pri.entry(*k) {
+                    Entry::Occupied(mut e) => {
+                        for (i, j) in v.iter() {
+                            e.get_mut().entry(*i).and_modify(|x| *x += j).or_insert(*j);
+                        }
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(v.clone());
+                    }
+                }
+            });
+        }
+    });
+
+}
 
 fn sync_noshare_pri() {
     let mut local_merge_noshare_pri = _MergeNoSharePRI.lock().unwrap();
@@ -120,14 +141,7 @@ fn sync_noshare_pri() {
             //     *v += *noshare_pri.borrow().get(*k).unwrap();
             // }); FIXME: can we do it this way, is this more efficient?
             for (k, v) in noshare_pri.borrow().iter() {
-                match local_merge_noshare_pri.entry(*k) {
-                    Entry::Occupied(mut e) => {
-                        *e.get_mut() += *v;
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(*v);
-                    }
-                }
+                local_merge_noshare_pri.entry(*k).and_modify(|e| *e += *v).or_insert(*v);
             }
         }
     });
@@ -359,9 +373,9 @@ pub(crate) fn _pluss_cri_nbd(thread_cnt: i32, n: i64, dist: &mut Histogram) {
 
 pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>) {
     let mut thread_cnt = thread_cnt.unwrap_or(THREAD_NUM as i32);
-    let mut merged_dist: HashMap<i64, Histogram> = Default::default(); //FIXME: i also changed this i32 to i64 as well
+    let mut merged_dist = _MergeSharePRI.lock().unwrap();
     // for i in 0..thread_cnt as usize {
-    //     let mut hash_of_hash = _SharePRI[i].lock().unwrap();
+    //     let mut hash_of_hash = _NoSharePRI[i].lock().unwrap();
     //     println!("hash_of_hash: {:?}", hash_of_hash);
     //     for (k, hash) in hash_of_hash.iter() { // share entry
     //         if merged_dist.contains_key(k) {
@@ -379,7 +393,7 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>) {
     //         }
     //     }
     // }
-    println!("merged_dist: {:?}", merged_dist);
+    // println!("merged_dist: {:?}", merged_dist);
     let mut prob: HashMap<i32, f64> = Default::default();
     let mut dist = Histogram::new();
     let mut i: i32 = 1;
@@ -387,12 +401,12 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>) {
     let mut n: f64;
     let mut ri_to_distribute: i64;
     let mut cnt_to_distribute: f64;
-    for (k, v) in merged_dist { // share entry
-        n = k as f64;
+    for (k, v) in merged_dist.iter() { // share entry
+        n = *k as f64;
         for (k1, v1) in v { // reuse entry
             if thread_cnt > 1 {
                 // println!("dist before: {:?}, k1: {}", dist, k1);
-                _pluss_cri_nbd(thread_cnt, k1, &mut dist);
+                _pluss_cri_nbd(thread_cnt, *k1, &mut dist);
                 // println!("dist after: {:?}", dist);
                 for (k2, v2) in dist.clone() { // dist entry
                     ri_to_distribute = k2;
@@ -419,7 +433,7 @@ pub(crate) fn _pluss_cri_racetrack(thread_cnt: Option<i32>) {
                 } // end of iterating dist
                 dist.clear();
             } else {
-                pluss_histogram_update(k1, v1);
+                pluss_histogram_update(*k1, *v1);
                 // println!("ri_hist: {:?}", _RIHist.lock().unwrap());
             }
         } // end of iterating all reuse entries
@@ -482,19 +496,19 @@ pub(crate) fn _pluss_cri_noshare_distribute(thread_cnt: Option<i32>) {
 
 #[inline]
 pub(crate) fn pluss_cri_distribute(thread_cnt: i32) {
-    println!("before distribute");
-    println!("ri_hist: {:?}", _RIHist.lock().unwrap());
-    println!("NoSharePRI: {:?}", _MergeNoSharePRI.lock().unwrap());
-    println!("SharePRI: {:?}", _MergeSharePRI.lock().unwrap());
+    // println!("before distribute");
+    // println!("ri_hist: {:?}", _RIHist.lock().unwrap());
+    // println!("NoSharePRI: {:?}", _MergeNoSharePRI.lock().unwrap());
+    // println!("SharePRI: {:?}", _MergeSharePRI.lock().unwrap());
     _pluss_cri_noshare_distribute(Some(thread_cnt));
-    println!("after distribute");
-    println!("before race track");
-    println!("ri_hist: {:?}", _RIHist.lock().unwrap());
-    println!("NoSharePRI: {:?}", _MergeNoSharePRI.lock().unwrap());
-    println!("SharePRI: {:?}", _MergeSharePRI.lock().unwrap());
+    // println!("after distribute");
+    // println!("before race track");
+    // println!("ri_hist: {:?}", _RIHist.lock().unwrap());
+    // println!("NoSharePRI: {:?}", _MergeNoSharePRI.lock().unwrap());
+    // println!("SharePRI: {:?}", _MergeSharePRI.lock().unwrap());
     _pluss_cri_racetrack(Some(thread_cnt));
-    println!("after race track");
-    println!("ri_hist: {:?}", _RIHist.lock().unwrap());
-    println!("NoSharePRI: {:?}", _MergeNoSharePRI.lock().unwrap());
-    println!("SharePRI: {:?}", _MergeSharePRI.lock().unwrap());
+    // println!("after race track");
+    // println!("ri_hist: {:?}", _RIHist.lock().unwrap());
+    // println!("NoSharePRI: {:?}", _MergeNoSharePRI.lock().unwrap());
+    // println!("SharePRI: {:?}", _MergeSharePRI.lock().unwrap());
 }
