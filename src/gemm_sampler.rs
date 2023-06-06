@@ -95,11 +95,11 @@ fn sampler() {
                 // println!("parallel_iteration_vector: {:?}", parallel_iteration_vector);
                 if progress[tid].is_some() {
                     // println!("progress[tid].as_mut().unwrap().refs: {}", progress[tid].as_mut().unwrap().refs);
-                    progress[tid].as_mut().unwrap().refs = "C0".parse().unwrap();
+                    progress[tid].as_mut().unwrap().refs = "C0";
                     progress[tid].as_mut().unwrap().iteration = parallel_iteration_vector;
                     progress[tid].as_mut().unwrap().chunk = c;
                 } else {
-                    let p = Progress::new_with_ref("C0".parse().unwrap(), parallel_iteration_vector, c);
+                    let p = Progress::new_with_ref("C0", parallel_iteration_vector, c);
                     // println!("p.refs: {}", p.refs);
                     progress[tid] = Some(p);
                 }
@@ -132,7 +132,7 @@ fn sampler() {
                 // count[tid_to_run]++;
                 count[tid] += 1;
                 // println!("count[tid]: {}", count[tid]);
-                progress[tid].as_mut().unwrap().increment_with_ref("C1".parse().unwrap());
+                progress[tid].as_mut().unwrap().increment_with_ref("C1");
                 continue;
             } /* end of check to C0 */
 
@@ -158,7 +158,7 @@ fn sampler() {
                 // println!("count[tid]: {}", count[tid]);
                 // CASE 2
                 progress[tid].as_mut().unwrap().iteration.push(0);
-                progress[tid].as_mut().unwrap().increment_with_ref("A0".parse().unwrap());
+                progress[tid].as_mut().unwrap().increment_with_ref("A0");
                 continue;
             } /* end of check to C1 */
             if progress[tid].as_ref().unwrap().refs == "A0" {
@@ -176,7 +176,7 @@ fn sampler() {
                 count[tid] += 1;
                 // println!("count[tid]: {}", count[tid]);
                 // CASE 2
-                progress[tid].as_mut().unwrap().increment_with_ref("B0".parse().unwrap());
+                progress[tid].as_mut().unwrap().increment_with_ref("B0");
                 continue;
             } /* end of check to A0 */
             if progress[tid].as_ref().unwrap().refs == "B0" {
@@ -207,7 +207,7 @@ fn sampler() {
                 LAT_B[tid].insert(addr, count[tid]);
                 count[tid] += 1;
                 // println!("count[tid]: {}", count[tid]);
-                progress[tid].as_mut().unwrap().increment_with_ref("C2".parse().unwrap());
+                progress[tid].as_mut().unwrap().increment_with_ref("C2");
                 continue;
             } /* end of check to B0 */
             if progress[tid].as_ref().unwrap().refs == "C2" {
@@ -224,7 +224,7 @@ fn sampler() {
                 LAT_C[tid].insert(addr, count[tid]);
                 count[tid] += 1;
                 // println!("count[tid]: {}", count[tid]);
-                progress[tid].as_mut().unwrap().increment_with_ref("C3".parse().unwrap());
+                progress[tid].as_mut().unwrap().increment_with_ref("C3");
                 continue;
             } /* end of check to C2 */
             if progress[tid].as_ref().unwrap().refs == "C3" {
@@ -243,14 +243,14 @@ fn sampler() {
                 if (progress[tid].as_ref().unwrap().iteration[2] + 1) < 128 {
                     // println!("going to A0 from C3, CASE 3");
                     progress[tid].as_mut().unwrap().iteration[2] = progress[tid].as_ref().unwrap().iteration[2] + 1;
-                    progress[tid].as_mut().unwrap().increment_with_ref("A0".parse().unwrap());
+                    progress[tid].as_mut().unwrap().increment_with_ref("A0");
                     continue;
                 } /* end of check to C3 */
                 if (progress[tid].as_ref().unwrap().iteration[1] + 1) < 128 {
                     // println!("going to C0 from C3, CASE 1");
                     progress[tid].as_mut().unwrap().iteration[1] = progress[tid].as_ref().unwrap().iteration[1] + 1;
                     progress[tid].as_mut().unwrap().iteration.pop(); //may need to unwrap???
-                    progress[tid].as_mut().unwrap().increment_with_ref("C0".parse().unwrap());
+                    progress[tid].as_mut().unwrap().increment_with_ref("C0");
                     continue;
                 } /* end of check to C3 */
                 //CASE 1
@@ -260,7 +260,7 @@ fn sampler() {
                     progress[tid].as_mut().unwrap().iteration.pop();
                     progress[tid].as_mut().unwrap().iteration.pop();
                     progress[tid].as_mut().unwrap().iteration.push(0);
-                    progress[tid].as_mut().unwrap().increment_with_ref("C0".parse().unwrap());
+                    progress[tid].as_mut().unwrap().increment_with_ref("C0");
                     continue;
                 } /* end of check to C3 */
             } /* end of check to C3 */

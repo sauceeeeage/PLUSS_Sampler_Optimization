@@ -1,6 +1,6 @@
 use crate::chunk::Chunk;
 pub (crate)struct Progress {
-    pub(crate) refs: String, // cannot name it ref because it's a keyword
+    pub(crate) refs: &'static str, // cannot name it ref because it's a keyword
     pub(crate) chunk: Chunk,
     pub(crate) iteration: Vec<i32>,
 }
@@ -8,12 +8,12 @@ pub (crate)struct Progress {
 impl Progress {
     pub fn new() -> Self {
         Progress {
-            refs: String::new(),
+            refs: "",
             chunk: Chunk::new(0, 0),
             iteration: Vec::new(),
         }
     }
-    pub fn new_with_ref(refs: String, iteration: Vec<i32>, chunk: Chunk) -> Self {
+    pub fn new_with_ref(refs: &'static str, iteration: Vec<i32>, chunk: Chunk) -> Self {
         Progress {
             refs,
             chunk,
@@ -31,14 +31,14 @@ impl Progress {
         ret += ")";
         ret
     }
-    pub fn get_reference(&self) -> String {
+    pub fn get_reference(&self) -> &'static str {
         self.refs.clone()
     }
-    pub fn increment(&mut self, refs: String, iteration: Vec<i32>) {
+    pub fn increment(&mut self, refs: &'static str, iteration: Vec<i32>) {
         self.refs = refs;
         self.iteration = iteration;
     }
-    pub fn increment_with_ref(&mut self, refs: String) {
+    pub fn increment_with_ref(&mut self, refs: &'static str) {
         self.refs = refs;
     }
     pub fn is_in_bound(&self) -> bool {

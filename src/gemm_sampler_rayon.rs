@@ -180,11 +180,11 @@ fn rayon_sampler(
             // println!("parallel_iteration_vector: {:?}", parallel_iteration_vector);
             if current_progress.is_some() {
                 // println!("current_progress.as_mut().unwrap().refs: {}", current_progress.as_mut().unwrap().refs);
-                current_progress.as_mut().unwrap().refs = "C0".parse().unwrap();
+                current_progress.as_mut().unwrap().refs = "C0";
                 current_progress.as_mut().unwrap().iteration = parallel_iteration_vector;
                 current_progress.as_mut().unwrap().chunk = c;
             } else {
-                let p = Progress::new_with_ref("C0".parse().unwrap(), parallel_iteration_vector, c);
+                let p = Progress::new_with_ref("C0", parallel_iteration_vector, c);
                 // println!("p.refs: {}", p.refs);
                 *current_progress = Some(p);
             }
@@ -226,7 +226,7 @@ fn rayon_sampler(
             current_progress
                 .as_mut()
                 .unwrap()
-                .increment_with_ref("A0".parse().unwrap());
+                .increment_with_ref("A0");
             continue;
         } /* end of check to C1 */
 
@@ -298,7 +298,7 @@ fn rayon_sampler(
                 current_progress
                     .as_mut()
                     .unwrap()
-                    .increment_with_ref("A0".parse().unwrap());
+                    .increment_with_ref("A0");
                 continue;
             } /* end of check to C3 */
             if (current_progress.as_ref().unwrap().iteration[1] + 1) < 128 {
@@ -309,7 +309,7 @@ fn rayon_sampler(
                 current_progress
                     .as_mut()
                     .unwrap()
-                    .increment_with_ref("C0".parse().unwrap());
+                    .increment_with_ref("C0");
                 continue;
             } /* end of check to C3 */
             //CASE 1
@@ -323,7 +323,7 @@ fn rayon_sampler(
                 current_progress
                     .as_mut()
                     .unwrap()
-                    .increment_with_ref("C0".parse().unwrap());
+                    .increment_with_ref("C0");
                 continue;
             } /* end of check to C3 */
         } /* end of check to C3 */

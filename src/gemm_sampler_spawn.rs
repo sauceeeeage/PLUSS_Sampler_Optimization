@@ -178,11 +178,11 @@ fn spawn_sampler(
             // println!("parallel_iteration_vector: {:?}", parallel_iteration_vector);
             if current_progress.is_some() {
                 // println!("current_progress.as_mut().unwrap().refs: {}", current_progress.as_mut().unwrap().refs);
-                current_progress.as_mut().unwrap().refs = "C0".parse().unwrap();
+                current_progress.as_mut().unwrap().refs = "C0";
                 current_progress.as_mut().unwrap().iteration = parallel_iteration_vector;
                 current_progress.as_mut().unwrap().chunk = c;
             } else {
-                let p = Progress::new_with_ref("C0".parse().unwrap(), parallel_iteration_vector, c);
+                let p = Progress::new_with_ref("C0", parallel_iteration_vector, c);
                 // println!("p.refs: {}", p.refs);
                 *current_progress = Some(p);
             }
@@ -213,7 +213,7 @@ fn spawn_sampler(
             current_progress
                 .as_mut()
                 .unwrap()
-                .increment_with_ref("C1".parse().unwrap());
+                .increment_with_ref("C1");
             continue;
         } /* end of check to C0 */
 
@@ -236,7 +236,7 @@ fn spawn_sampler(
             current_progress
                 .as_mut()
                 .unwrap()
-                .increment_with_ref("A0".parse().unwrap());
+                .increment_with_ref("A0");
             continue;
         } /* end of check to C1 */
         if current_progress.as_ref().unwrap().refs == "A0" {
@@ -257,7 +257,7 @@ fn spawn_sampler(
             current_progress
                 .as_mut()
                 .unwrap()
-                .increment_with_ref("B0".parse().unwrap());
+                .increment_with_ref("B0");
             continue;
         } /* end of check to A0 */
         if current_progress.as_ref().unwrap().refs == "B0" {
@@ -297,7 +297,7 @@ fn spawn_sampler(
             current_progress
                 .as_mut()
                 .unwrap()
-                .increment_with_ref("C2".parse().unwrap());
+                .increment_with_ref("C2");
             continue;
         } /* end of check to B0 */
         if current_progress.as_ref().unwrap().refs == "C2" {
@@ -317,7 +317,7 @@ fn spawn_sampler(
             current_progress
                 .as_mut()
                 .unwrap()
-                .increment_with_ref("C3".parse().unwrap());
+                .increment_with_ref("C3");
             continue;
         } /* end of check to C2 */
         if current_progress.as_ref().unwrap().refs == "C3" {
@@ -340,7 +340,7 @@ fn spawn_sampler(
                 current_progress
                     .as_mut()
                     .unwrap()
-                    .increment_with_ref("A0".parse().unwrap());
+                    .increment_with_ref("A0");
                 continue;
             } /* end of check to C3 */
             if (current_progress.as_ref().unwrap().iteration[1] + 1) < 128 {
@@ -351,7 +351,7 @@ fn spawn_sampler(
                 current_progress
                     .as_mut()
                     .unwrap()
-                    .increment_with_ref("C0".parse().unwrap());
+                    .increment_with_ref("C0");
                 continue;
             } /* end of check to C3 */
             //CASE 1
@@ -365,7 +365,7 @@ fn spawn_sampler(
                 current_progress
                     .as_mut()
                     .unwrap()
-                    .increment_with_ref("C0".parse().unwrap());
+                    .increment_with_ref("C0");
                 continue;
             } /* end of check to C3 */
         } /* end of check to C3 */
