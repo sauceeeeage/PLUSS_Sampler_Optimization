@@ -1,16 +1,19 @@
 use std::arch::asm;
-use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::sync::{Arc, Mutex, Once};
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::{Entry};
+use ahash::RandomState;
 use std::io::Read;
 use std::thread;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use statrs::distribution::{Discrete, NegativeBinomial};
+use ahash::HashMapExt;
 
+type HashSet<K> = std::collections::HashSet<K, RandomState>;
+type HashMap<K, V> = std::collections::HashMap<K, V, RandomState>;
 type Histogram = HashMap<i64, f64>;
 
 const THREAD_NUM: usize = 4;
@@ -18,7 +21,7 @@ const POLYBENCH_CACHE_SIZE_KB: usize = 2560;
 
 lazy_static! {
     // pub static ref _NoSharePRI: [Mutex<Histogram>; THREAD_NUM] = Default::default();
-    static ref _RIHist: Mutex<Histogram> = Mutex::new(Histogram::new());
+    static ref _RIHist: Mutex<Histogram> = Default::default();
     // static ref _MRC: Mutex<HashMap<u64, f64>> = Mutex::new(HashMap::new());
     // static ref _SharePRI: [Mutex<HashMap<i64, Histogram>>; THREAD_NUM] = Default::default();
     static ref _MergeSharePRI: Mutex<HashMap<i64, Histogram>> = Default::default();

@@ -1,5 +1,4 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::iter::Map;
 use std::process::id;
 use std::ptr::null_mut;
@@ -22,6 +21,8 @@ use crate::chunk_dispatcher::chunk_dispatcher;
 use crate::progress::{Progress, self};
 // use crate::{utils};
 use crate::unsafe_utils;
+use ahash::RandomState;
+use ahash::HashMapExt;
 // use tracing::{debug, error, info, instrument, span, trace, warn, Level, dispatcher};
 
 /*
@@ -30,7 +31,9 @@ use crate::unsafe_utils;
 
 // TODO: need to change string to i32 with a hashmap substitute
 // TODO: need to change the into_par_iter to chunk_par_iter
-
+type HashSet<K> = std::collections::HashSet<K, RandomState>;
+type HashMap<K, V> = std::collections::HashMap<K, V, RandomState>;
+type Histogram = HashMap<i64, f64>;
 const THREAD_NUM: usize = 4;
 ///because the thread_num in gemm is 4
 const CHUNK_SIZE: usize = 4;

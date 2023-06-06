@@ -11,6 +11,7 @@ repository = "https://github.com/sauceeeeage/PLUSS_Sampler_Optimization.git"
 lazy_static = "1.4"
 rayon = "1.7.0"
 statrs = "0.16.0"
+ahash = { version = "0.8.3", features = ["compile-time-rng", "std"] }
 
 [profile.release]
 lto = true

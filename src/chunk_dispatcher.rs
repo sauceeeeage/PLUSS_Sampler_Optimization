@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+
 use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender, Receiver};
@@ -7,10 +7,14 @@ use std::time::Instant;
 use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::thread::Thread;
+use ahash::RandomState;
+use ahash::HashMapExt;
 use crate::chunk::Chunk;
 // use derivative::Derivative;
 
-type Histogram = HashMap<i64, f64>; /// maybe can be replaced by a struct
+type HashSet<K> = std::collections::HashSet<K, RandomState>;
+type HashMap<K, V> = std::collections::HashMap<K, V, RandomState>;
+type Histogram = HashMap<i64, f64>;
 const THREAD_NUM: usize = 4; ///because the thread_num in gemm is 4
 
 // #[derive(Derivative)]

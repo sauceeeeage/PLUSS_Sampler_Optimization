@@ -10,3 +10,5 @@
 /c_lib/test/runtime/pluss.o
 output.txt
 flamegraph.svg
+perf.data
+perf.data.old
