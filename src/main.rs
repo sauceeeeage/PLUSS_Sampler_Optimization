@@ -24,17 +24,17 @@ fn main() {
         println!();
         // gemm_profiler::acc(128, 128, 128, 4);
     } else if method.eq_ignore_ascii_case("speed") {
-        for _ in 0..5{
+        for _ in 0..3{
             gemm_sampler_rayon::speed();
         }
-        // println!();
+        println!();
         // for _ in 0..3{
         //     gemm_sampler_spawn::speed();
         // }
         // println!();
-        // for _ in 0..3{
-        //     gemm_sampler::speed();
-        // }
-        // println!();
+        for _ in 0..3{
+            gemm_sampler::speed();
+        }
+        println!();
     }
 }
