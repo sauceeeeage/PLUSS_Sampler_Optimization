@@ -192,21 +192,3 @@ impl PartialOrd for Iteration {
         Some(ordering)
     }
 }
-
-
-// IterationHasher
-impl Hash for Iteration {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-        let mut bitmap: u64 = 0u64;
-        let mut i = 2;
-        for &iv in &self.ivs {
-            bitmap |= (iv as u64) << (i * 14);
-            i -= 1;
-            if i < 0 {
-                break;
-            }
-        }
-        bitmap.hash(state); // not sure to be honest......
-    }
-}

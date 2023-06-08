@@ -2,12 +2,7 @@
 /.idea
 /c_lib/test/.idea
 /c_lib/test/bin
-/c_lib/test/gemm-t4-pluss-pro-model-ri-omp-seq.o
-/c_lib/test/gemm-t4-pluss-pro-model-ri-omp.o
-/c_lib/test/pluss.o
-/c_lib/test/pluss_utils.o
-/c_lib/test/runtime/pluss_utils.o
-/c_lib/test/runtime/pluss.o
+/c_lib/test/*.o
 output.txt
 flamegraph.svg
 perf.data
