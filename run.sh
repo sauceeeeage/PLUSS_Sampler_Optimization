@@ -10,4 +10,3 @@ cd ../..
 
 env RUSTFLAGS="-C target-cpu=native" cargo build --release --bin RUST_PLUSS
 ./target/release/RUST_PLUSS "$METHOD" >> output.txt
-
