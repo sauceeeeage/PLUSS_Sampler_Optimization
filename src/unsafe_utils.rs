@@ -127,7 +127,6 @@ fn sync_share_pri() {
             });
         }
     });
-
 }
 
 fn sync_noshare_pri() {
