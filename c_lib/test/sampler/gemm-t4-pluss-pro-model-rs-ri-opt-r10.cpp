@@ -161,7 +161,7 @@ void sampler_C3(unordered_map<long, double> &histogram) {
         cout << "sample_c0: [" << (0) << "," << (((128-0)/1-((128-0)%1==0))*(1)+0) << "] samples " << sample_c0 << endl;
 #endif
         if (((128-0)/1-((128-0)%1==0))< 0) { continue; }
-        int sample_c1 = (((128-0)/1-((128-0)%1==0)) == 0)?(0):(rand()%(((128-0)/1-((128-0)%1==0))))*(1)+(0);
+        int sample_c1 = (((128-0)/1-((128-0)%1==0)) == 0)?(0):(rand()%(((128-0)/1-((128-0)%1==0))))*(1)+(0); //this just give whatever rand() is
 #if defined(DEBUG)
         cout << "sample_c1: [" << (0) << "," << (((128-0)/1-((128-0)%1==0))*(1)+0) << "] samples " << sample_c1 << endl;
 #endif
@@ -1630,7 +1630,7 @@ INTERLEAVING_LOOP_0:
                 progress[i] = nullptr;
             }
         } // end of progress traversal
-        goto END_SAMPLE;
+        goto END_SAMPLE; // TODO: do not understand why do we have a while (!samples.empty()) loop when we just jump to END_SAMPLE in the first iteration???
     } // end of while (!samples.empty())
 END_SAMPLE:
     if (!idle_threads.empty()) { idle_threads.clear(); };
@@ -2239,7 +2239,7 @@ void sampler_B0(unordered_map<long, double> &histogram) {
     hash<std::thread::id> hasher;
     static thread_local mt19937 generator(time(NULL)+hasher(this_thread::get_id()));
     //generate all samples and sort them in order
-    int num_samples = 2098;
+    int num_samples = 2098; // TODO: do not understand why this is 2098 and others are 164
     while (s < num_samples) {
         string sample_label = "B0";
         int sample_c0 = (((128-0)/1-((128-0)%1==0)) == 0)?(0):(rand()%(((128-0)/1-((128-0)%1==0))))*(1)+(0);
@@ -2258,7 +2258,7 @@ void sampler_B0(unordered_map<long, double> &histogram) {
 #endif
         sample_label += (to_string(sample_c0) + "-");
         sample_label += (to_string(sample_c1) + "-");
-        sample_label += (to_string(sample_c2) + "-");
+        sample_label += (to_string(sample_c2) + "-"); //TODO: do not understand why B0 never concatenate A0 but can concatenate C2
         //avoid duplicate sampling
         if (sample_names.find(sample_label)!=sample_names.end()) { continue; }
         sample_names.insert(sample_label);
@@ -3274,11 +3274,11 @@ int main() {
     for (auto pair : histogram_C1) {
         pluss_histogram_update(pair.first,pair.second);
     }
-    pluss_AET();
+//    pluss_AET();
     pluss_timer_stop();
     pluss_timer_print();
     pluss_print_histogram();
-    pluss_print_mrc();
+//    pluss_print_mrc();
     for (auto entry: iteration_traversed_map) {
         max_iteration_count = max(max_iteration_count, entry.second);
     }

@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/PLUSS_Sampler_Optimization.iml" filepath="$PROJECT_DIR$/.idea/PLUSS_Sampler_Optimization.iml" />
       <module fileurl="file://$PROJECT_DIR$/RUST_PLUSS.iml" filepath="$PROJECT_DIR$/RUST_PLUSS.iml" />
     </modules>
   </component>
