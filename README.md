@@ -11,3 +11,6 @@ using Rust with parallel techniques to improve the performance and memory safety
    2. `acc` will run the code with the accuracy test
    3. `speed` will run the code with the speed test
 4. check the output.txt file for the result
+
+### SLIDES
+Slides available: https://github.com/dcompiler/258s23/blob/main/FinalProjects.md#shaotong-sun-and-jionghao-han-pluss-sampler-optimization 
