@@ -1,7 +1,7 @@
 # PLUSS_Sampler_Optimization
 
-This project aims to optimize PLUSS Sampler using Rust with parallel techniques to improve the 
-performance and memory safety of the original C++ GEMM sampler.
+This project aims to optimize PLUSS Sampler(https://cnc-workshop.github.io/cnc2021/slides/CnC_Liu.pdf)
+using Rust with parallel techniques to improve the performance and memory safety of the original C++ GEMM sampler.
 
 ### HOW TO RUN THE CODE:
 1. download and install GSL library from https://www.gnu.org/software/gsl/
