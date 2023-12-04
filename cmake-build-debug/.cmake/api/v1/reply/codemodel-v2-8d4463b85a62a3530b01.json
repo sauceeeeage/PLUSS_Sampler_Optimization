@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.25"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "PLUSS_Sampler_Optimization",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "PLUSS_Sampler_Optimization::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-PLUSS_Sampler_Optimization-Debug-64a3a0f4ed19e8d3e4c7.json",
+					"name" : "PLUSS_Sampler_Optimization",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/shaotong/IdeaProjects/PLUSS_Sampler_Optimization/cmake-build-debug",
+		"source" : "/home/shaotong/IdeaProjects/PLUSS_Sampler_Optimization"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 5
+	}
+}

@@ -11,6 +11,9 @@
 #include <fstream>
 #include <map>
 #include <parallel_hashmap/phmap.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_cdf.h> // cdf of gaussian distribution
 
 typedef phmap::flat_hash_map<long, double> Histogram;
 
@@ -970,6 +973,159 @@ inline void pluss_pri_print_histogram()
 		}
 	}
 	_pluss_histogram_print("Start to dump private reuse time", merged_dist);
+}
+
+inline void _pluss_cri_nbd(int thread_cnt, long n, Histogram &dist)
+{
+#if defined(DEBUG)
+    cout << "Distribute thread-local Reuse: " << n << endl;
+#endif
+    double p = 1.0 / thread_cnt;
+    if (n >= (4000. * (thread_cnt-1)) / thread_cnt) {
+        // int i = (int)log2(n);
+        // long bin = (long)(pow(2.0, i));
+        dist[THREAD_NUM*n] = 1.0;
+        return;
+    }
+    long k = 0;
+    double nbd_prob = 0.0, prob_sum = 0.0;
+    while (true) {
+        nbd_prob = gsl_ran_negative_binomial_pdf(k, p, (double)n);
+        prob_sum += nbd_prob;
+        dist[k+n] = nbd_prob;
+        if (prob_sum > 0.9999)
+            break;
+        k += 1;
+    }
+} // end of void pluss_cri_nbd()
+
+inline void _pluss_cri_noshare_distribute(int thread_cnt=THREAD_NUM)
+{
+    Histogram dist;
+	Histogram merged_dist;
+	for (unsigned i = 0; i < _NoSharePRI.size(); i++) {
+		for (auto entry : _NoSharePRI[i]) {
+			if (merged_dist.find(entry.first) != merged_dist.end()) {
+				merged_dist[entry.first] += entry.second;
+			} else {
+				merged_dist[entry.first] = entry.second;
+			}
+		}
+	}
+	for (auto entry : merged_dist) {
+		if (entry.first < 0) {
+			pluss_histogram_update(entry.first,entry.second);
+			continue;
+		}
+		if (thread_cnt > 1) {
+			_pluss_cri_nbd(thread_cnt, entry.first, dist);
+			for (auto dist_entry : dist) {
+				long ri_to_distribute = dist_entry.first;
+				pluss_histogram_update(ri_to_distribute, entry.second * dist_entry.second);
+			}
+			dist.clear();
+		} else {
+			pluss_histogram_update(entry.first,entry.second);
+		} // end of if(thread_cnt > 1)
+	}
+} // end of void pluss_cri_noshare_distribute()
+inline void _pluss_cri_racetrack(int thread_cnt=THREAD_NUM)
+{
+	unordered_map<int, Histogram> merged_dist;
+	for (unsigned i = 0; i < _SharePRI.size(); i++) {
+		for (auto share_entry : _SharePRI[i]) {
+			if (merged_dist.find(share_entry.first) != merged_dist.end()) {
+				for (auto reuse_entry : share_entry.second) {
+					if (merged_dist.find(reuse_entry.first) != merged_dist.end()) {
+						merged_dist[share_entry.first][reuse_entry.first] += reuse_entry.second;
+					} else {
+						merged_dist[share_entry.first][reuse_entry.first] += reuse_entry.second;
+					}
+				}
+			} else {
+				for (auto reuse_entry : share_entry.second) {
+					merged_dist[share_entry.first][reuse_entry.first] = reuse_entry.second;
+				}
+			}
+		}
+	}
+	for (auto share_entry : merged_dist) {
+		unordered_map<int, double> prob;
+		Histogram dist;
+		int i = 1;
+		double prob_sum = 0.0, n = (double)share_entry.first;
+		for (auto reuse_entry : share_entry.second) {
+			// printf("share parameter n = %f\n", n);
+			if (thread_cnt > 1) {
+
+				_pluss_cri_nbd(thread_cnt, reuse_entry.first, dist);
+				for (auto dist_entry: dist) {
+					long ri_to_distribute = dist_entry.first;
+					double cnt_to_distribute = reuse_entry.second * dist_entry.second;
+#if defined(DEBUG)
+					printf("new ri: 	%lu, %f*%f=%f\n", ri_to_distribute, reuse_entry.second, dist_entry.second, cnt_to_distribute);
+#endif
+					prob_sum = 0.0;
+					i = 1;
+					while (true) {
+						if (pow(2.0, (double)i) > ri_to_distribute) { break; }
+						prob[i] = pow(1-(pow(2.0, (double)i-1) / ri_to_distribute), n) - pow(1-(pow(2.0, (double)i) / ri_to_distribute), n);
+						prob_sum += prob[i];
+#if defined(DEBUG)
+						printf("prob[2^%d <= ri < 2^%d] = %f (%f)\n", i-1, i, prob[i], prob[i]*cnt_to_distribute);
+#endif
+						i++;
+						if (prob_sum == 1.0) { break; }
+					} // end of while(true)
+					if (prob_sum != 1.0) {
+						prob[i-1] = 1 - prob_sum;
+#if defined(DEBUG)
+						printf("prob[ri >= 2^%d] = %f (%f)\n", i-1, prob[i], prob[i]*cnt_to_distribute);
+#endif
+					}
+					for (auto bin : prob) {
+						long new_ri = (long)pow(2.0, bin.first-1);
+						pluss_histogram_update(new_ri, bin.second*cnt_to_distribute);
+					}
+					prob.clear();
+					// pluss_histogram_update(ri_to_distribute, cnt_to_distribute);
+				} // end of iterating dist
+				dist.clear();
+#if 0
+				long ri_to_distribute = reuse_entry.first;
+				double cnt_to_distribute = reuse_entry.second;
+				printf("new ri: 	%lu, %f\n", ri_to_distribute, cnt_to_distribute);
+				prob_sum = 0.0;
+				i = 1;
+				while (true) {
+					if (pow(2.0, (double)i) > ri_to_distribute) { break; }
+					prob[i] = pow(1-(pow(2.0, (double)i-1) / ri_to_distribute), n) - pow(1-(pow(2.0, (double)i) / ri_to_distribute), n);
+					prob_sum += prob[i];
+					printf("prob[2^%d <= ri < 2^%d] = %f (%f)\n", i-1, i, prob[i], prob[i]*cnt_to_distribute);
+					i++;
+					if (prob_sum == 1.0) { break; }
+				} // end of while(true)
+				if (prob_sum != 1.0) {
+					prob[i-1] = 1 - prob_sum;
+					printf("prob[ri >= 2^%d] = %f (%f)\n", i-1, prob[i], prob[i]*cnt_to_distribute);
+				}
+				for (auto bin : prob) {
+					long new_ri = (long)pow(2.0, bin.first-1);
+					pluss_histogram_update(new_ri, bin.second*cnt_to_distribute);
+				}
+				prob.clear();
+#endif
+			} else {
+				pluss_histogram_update(reuse_entry.first,reuse_entry.second);
+			}
+		} // end of iterating all reuse entries
+	} // end of iterating all type of reuses
+} // end of void pluss_cri_racetrack()
+
+inline void pluss_cri_distribute(int thread_cnt)
+{
+	_pluss_cri_noshare_distribute(thread_cnt);
+	_pluss_cri_racetrack(thread_cnt);
 }
 
 

@@ -337,22 +337,24 @@ int main(int argc, char** argv) {
         pluss_timer_start();
         sampler();
         pluss_cri_distribute(THREAD_NUM);
+        pluss_AET();
         pluss_timer_stop();
         cout << "SEQ C++: ";
         pluss_timer_print();
         pluss_cri_noshare_print_histogram();
         pluss_cri_share_print_histogram();
         pluss_print_histogram();
+        pluss_print_mrc();
         cout << "max iteration traversed" << endl;
         cout << max_iteration_count << endl;
         printf("\n");
     } else if (method == "speed") {
-        for (int i = 0; i < 3; i++) {
+        cout << "SEQ C++:\n";
+        for (int i = 0; i < 10; i++) {
             pluss_timer_start();
             sampler();
             pluss_cri_distribute(THREAD_NUM);
             pluss_timer_stop();
-            cout << "SEQ C++: ";
             pluss_timer_print();
         }
         printf("\n");

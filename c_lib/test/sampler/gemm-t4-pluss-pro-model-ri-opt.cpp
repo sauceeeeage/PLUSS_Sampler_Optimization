@@ -60,7 +60,7 @@ void sampler() {
 #endif
         idle_threads[tid_to_run] = 1;
     }
-    #pragma omp parallel for num_threads(THREAD_NUM) private(addr)
+    #pragma omp parallel for num_threads(1) private(addr)
     for (tid_to_run = 0; tid_to_run < THREAD_NUM; tid_to_run++) {
         long count = 0;
         unordered_map<uint64_t, long> LAT_B;
@@ -329,18 +329,45 @@ LOOP_K:
     LATIterMap.clear();
 #endif
 }
-int main() {
-    pluss_timer_start();
-    sampler();
-    // pluss_cri_distribute(THREAD_NUM);
-    pluss_AET();
-    pluss_timer_stop();
-    pluss_timer_print();
-    // pluss_cri_noshare_print_histogram();
-    // pluss_cri_share_print_histogram();
-    // pluss_print_histogram();
-    // pluss_print_mrc();
-    // cout << "max iteration traversed" << endl;
-    // cout << max_iteration_count << endl;
+int main(int argc, char** argv) {
+//    pluss_timer_start();
+//    sampler();
+//    // pluss_cri_distribute(THREAD_NUM);
+//    pluss_AET();
+//    pluss_timer_stop();
+//    pluss_timer_print();
+//    // pluss_cri_noshare_print_histogram();
+//    // pluss_cri_share_print_histogram();
+//    // pluss_print_histogram();
+//    // pluss_print_mrc();
+//    // cout << "max iteration traversed" << endl;
+//    // cout << max_iteration_count << endl;
+//    return 0;
+    string method = argv[1];
+    if (method == "acc") {
+        pluss_timer_start();
+        sampler();
+        pluss_cri_distribute(THREAD_NUM);
+        pluss_timer_stop();
+        cout << "OPENMP OPT C++: ";
+        pluss_timer_print();
+        pluss_cri_noshare_print_histogram();
+        pluss_cri_share_print_histogram();
+        pluss_print_histogram();
+        cout << "max iteration traversed" << endl;
+        cout << max_iteration_count << endl;
+        printf("\n");
+    } else if (method == "speed") {
+        cout << "OPENMP OPT C++:\n";
+        for (int i = 0; i < 10; i++) {
+            pluss_timer_start();
+            sampler();
+            pluss_cri_distribute(THREAD_NUM);
+            pluss_timer_stop();
+            pluss_timer_print();
+        }
+        printf("\n");
+    }
+
     return 0;
 }

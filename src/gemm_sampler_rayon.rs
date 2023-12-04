@@ -68,7 +68,7 @@ fn update_and_clear_array(hash: &mut HashMap<u64, i64>) {
 }
 
 //Generate sampler without sampling
-fn sampler() {
+fn sampler(pool: &rayon::ThreadPool) {
     //Declare components will be used in Parallel RI search
     ///progress is not needed in this simpler version
     // array<Progress *, THREAD_NUM> progress = { nullptr };
@@ -104,25 +104,50 @@ fn sampler() {
     }
     std::mem::drop(local_idle_threads);
 
-    (0..THREAD_NUM).into_par_iter().for_each( //FIXME: change this to chunk mut, maybe better
-                                              // should be par_iter_mut or similar things...
-                                              |tid: usize| {
-                                                  // println!("This is thread {}.", tid);
-                                                  let mut idle_threads = Arc::clone(&idle_threads);
-                                                  let mut dispatcher = Arc::clone(&dispatcher);
-                                                  // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
-                                                  // let this_progress = Arc::clone(&current_progress);
-                                                  // let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
-                                                  let mut current_progress: Arc<Mutex<Option<Progress>>> = Arc::clone(&progress[tid]);
+    pool.scope(move |s|{
+        s.spawn(move |_| {
+            (0..THREAD_NUM).into_par_iter().for_each(|tid: usize| {
+                println!("This is thread {}.", pool.current_thread_index().unwrap());
+                let mut idle_threads = Arc::clone(&idle_threads);
+                let mut dispatcher = Arc::clone(&dispatcher);
+                // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
+                // let this_progress = Arc::clone(&current_progress);
+                // let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
+                let mut current_progress: Arc<Mutex<Option<Progress>>> = Arc::clone(&progress[tid]);
 
-                                                  rayon_sampler(
-                                                      &mut idle_threads,
-                                                      tid,
-                                                      &mut dispatcher,
-                                                      &mut current_progress,
-                                                  );
-                                              }
-    );
+                rayon_sampler(
+                    &mut idle_threads,
+                    tid,
+                    &mut dispatcher,
+                    &mut current_progress,
+                );
+            });
+        });
+    });
+
+    // pool.install(move || {
+    //     (0..THREAD_NUM).into_par_iter().for_each( //FIXME: change this to chunk mut, maybe better
+    //                                               // should be par_iter_mut or similar things...
+    //                                               |tid: usize| {
+    //                                                   // println!("This is thread {}.", tid);
+    //                                                   let mut idle_threads = Arc::clone(&idle_threads);
+    //                                                   let mut dispatcher = Arc::clone(&dispatcher);
+    //                                                   // let mut new_progress: [Arc<Mutex<Option<Progress>>>; THREAD_NUM] = Default::default();
+    //                                                   // let this_progress = Arc::clone(&current_progress);
+    //                                                   // let mut current_progress: Arc<Mutex<Option<Progress>>> = Default::default();
+    //                                                   let mut current_progress: Arc<Mutex<Option<Progress>>> = Arc::clone(&progress[tid]);
+    //
+    //                                                   rayon_sampler(
+    //                                                       &mut idle_threads,
+    //                                                       tid,
+    //                                                       &mut dispatcher,
+    //                                                       &mut current_progress,
+    //                                                   );
+    //                                               }
+    //     );
+    // });
+
+
     // idle_threads.lock().unwrap().fill(0);
     //
     //
@@ -352,9 +377,9 @@ fn rayon_sampler(
     unsafe_utils::sync_pri();
 }
 
-pub(crate) fn acc() {
+pub(crate) fn acc(pool: &rayon::ThreadPool) {
     let start = Instant::now();
-    sampler();
+    sampler(pool);
     unsafe_utils::pluss_cri_distribute(THREAD_NUM as i32);
     let end = start.elapsed();
     println!("RUST RAYON: {:?}", end);
@@ -367,10 +392,10 @@ pub(crate) fn acc() {
     println!("max iteration traversed: {}", max_iteration_count.load(Ordering::Relaxed));
 }
 
-pub(crate) fn speed() {
+pub(crate) fn speed(pool: &rayon::ThreadPool) {
     let start = Instant::now();
-    sampler();
+    sampler(pool);
     unsafe_utils::pluss_cri_distribute(THREAD_NUM as i32);
     let end = start.elapsed();
-    println!("RUST RAYON: {:?}", end);
+    println!("{:?}", end);
 }

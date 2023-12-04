@@ -64,7 +64,7 @@ void sampler() {
 #endif
         idle_threads[tid_to_run] = 1;
     }
-    #pragma omp parallel for num_threads(THREAD_NUM) private(addr)
+    #pragma omp parallel for num_threads(1) private(addr)
     for (tid_to_run = 0; tid_to_run < THREAD_NUM; tid_to_run++) {
         while(true) {
             if (idle_threads[tid_to_run] == 1 && dispatcher.hasNextChunk(1)) {
@@ -347,12 +347,12 @@ int main(int argc, char** argv) {
         cout << max_iteration_count << endl;
         printf("\n");
     } else if (method == "speed") {
-        for (int i = 0; i < 3; i++) {
+        cout << "OPENMP C++:\n";
+        for (int i = 0; i < 10; i++) {
             pluss_timer_start();
             sampler();
             pluss_cri_distribute(THREAD_NUM);
             pluss_timer_stop();
-            cout << "OPENMP C++: ";
             pluss_timer_print();
         }
         printf("\n");

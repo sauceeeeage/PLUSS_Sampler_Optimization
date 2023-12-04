@@ -2832,7 +2832,7 @@ INTERLEAVING_LOOP_0:
                             pluss_parallel_histogram_update(no_share_histogram,reuse,1.);
                             Iteration *src = LATSampleIterMap[tid_to_run][LAT[tid_to_run][addr]];
                             traversing_samples--;
-                            //stop traversing if reuse of all samplesare found
+                            //stop traversing if reuse of all samples are found
 #if defined(DEBUG)
                             if (samples.empty() && traversing_samples == 0) { cout << "[" << reuse << "] for last sample " << src->toString() << endl; };
 #endif
@@ -3230,7 +3230,7 @@ int main() {
     //set the thread affinity
     cpu_set_t cpuset_C0;
     CPU_ZERO(&cpuset_C0);
-    CPU_SET(6,&cpuset_C0);
+    CPU_SET(6,&cpuset_C0); // TODO: do not understand why we space the threads out like (4, 6, 8, 10)
     pthread_setaffinity_np(t_sampler_C0.native_handle(),sizeof(cpu_set_t),&cpuset_C0);
 /* (c2,0,\<,128,(c2 + 1)), 0*/
 /* (c1,0,\<,128,(c1 + 1)), 0*/
@@ -3274,11 +3274,18 @@ int main() {
     for (auto pair : histogram_C1) {
         pluss_histogram_update(pair.first,pair.second);
     }
-//    pluss_AET();
+    pluss_AET();
     pluss_timer_stop();
     pluss_timer_print();
+    _pluss_histogram_print("C3", histogram_C3);
+    _pluss_histogram_print("C2", histogram_C2);
+    _pluss_histogram_print("A0", histogram_A0);
+    _pluss_histogram_print("C0", histogram_C0);
+    _pluss_histogram_print("B0", histogram_B0);
+    _pluss_histogram_print("C1", histogram_C1);
+
     pluss_print_histogram();
-//    pluss_print_mrc();
+    pluss_print_mrc();
     for (auto entry: iteration_traversed_map) {
         max_iteration_count = max(max_iteration_count, entry.second);
     }
